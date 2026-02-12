@@ -32,9 +32,33 @@ function EntryPointTable({
   return (
     <div className="space-y-3">
       <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-      <div className="rounded-lg border border-border/50 overflow-hidden">
+      {/* Mobile: card layout */}
+      <div className="space-y-3 md:hidden">
+        {items.map((entry, i) => (
+          <div key={i} className="rounded-lg border border-border/50 bg-card/50 p-4 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-medium text-sm">{entry.name}</span>
+              {entry.type && (
+                <span
+                  className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-mono font-medium ${getTypeStyle(entry.type)}`}
+                >
+                  {entry.type}
+                </span>
+              )}
+            </div>
+            <code className="text-xs text-muted-foreground font-mono block break-all">
+              {entry.path}
+            </code>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {entry.description}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop: table layout */}
+      <div className="rounded-lg border border-border/50 overflow-hidden hidden md:block">
         <div className="grid grid-cols-[1fr_auto_2fr] gap-px bg-border/30">
-          {/* Header */}
           <div className="bg-muted/50 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider">
             Name
           </div>
@@ -45,20 +69,15 @@ function EntryPointTable({
             Description
           </div>
 
-          {/* Rows */}
           {items.map((entry, i) => (
             <Fragment key={i}>
-              <div
-                className="bg-card/50 px-4 py-3 flex flex-col justify-center"
-              >
+              <div className="bg-card/50 px-4 py-3 flex flex-col justify-center">
                 <span className="font-medium text-sm">{entry.name}</span>
                 <code className="text-xs text-muted-foreground font-mono mt-0.5">
                   {entry.path}
                 </code>
               </div>
-              <div
-                className="bg-card/50 px-4 py-3 flex items-center"
-              >
+              <div className="bg-card/50 px-4 py-3 flex items-center">
                 {entry.type && (
                   <span
                     className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-mono font-medium ${getTypeStyle(entry.type)}`}
@@ -67,9 +86,7 @@ function EntryPointTable({
                   </span>
                 )}
               </div>
-              <div
-                className="bg-card/50 px-4 py-3 flex items-center"
-              >
+              <div className="bg-card/50 px-4 py-3 flex items-center">
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {entry.description}
                 </p>
@@ -86,7 +103,7 @@ export function EntryPoints({ data }: { data: EntryPointsType }) {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Entry Points</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Entry Points</h1>
         <p className="text-sm text-muted-foreground">
           Application entry points, CLI commands, and API endpoints
         </p>

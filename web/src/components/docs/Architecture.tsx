@@ -10,7 +10,7 @@ export function Architecture({ data }: { data: ArchitectureType }) {
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-3">
-        <h1 className="text-3xl font-bold tracking-tight">Architecture</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Architecture</h1>
         <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
           {data.description}
         </p>
@@ -40,12 +40,12 @@ export function Architecture({ data }: { data: ArchitectureType }) {
       {data.components.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-xl font-semibold tracking-tight">Components</h2>
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
             {data.components.map((component, i) => (
               <Card key={i} className="border-border/50 bg-card/50">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base">{component.name}</CardTitle>
-                  <code className="text-xs text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded w-fit">
+                  <code className="text-xs text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded w-fit break-all">
                     {component.path}
                   </code>
                 </CardHeader>

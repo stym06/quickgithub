@@ -52,8 +52,8 @@ export function SubpageClient({
             <Skeleton key={i} className="h-8 w-full mb-2" />
           ))}
         </div>
-        <div className="flex-1 p-8">
-          <Skeleton className="h-10 w-96 mb-4" />
+        <div className="flex-1 px-4 py-6 pt-16 md:px-8 md:py-8 md:pt-8">
+          <Skeleton className="h-10 w-3/4 md:w-96 mb-4" />
           <Skeleton className="h-6 w-full mb-2" />
           <Skeleton className="h-6 w-3/4" />
         </div>
@@ -104,8 +104,8 @@ export function SubpageClient({
         repo={repo}
         modules={docs.keyModules}
       />
-      <main className="flex-1 max-w-4xl p-8">
-        <div className="flex items-center justify-end gap-4 mb-4">
+      <main className="flex-1 min-w-0 max-w-4xl px-4 py-6 pt-16 md:px-8 md:py-8 md:pt-8 overflow-x-hidden">
+        <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
           {updatedAt && (
             <span className="text-xs text-muted-foreground">
               Indexed on {new Date(updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

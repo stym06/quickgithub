@@ -47,7 +47,7 @@ export function SystemOverview({ data, techStack }: SystemOverviewProps) {
       {/* Header */}
       <div className="space-y-4">
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">System Overview</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">System Overview</h1>
           <div className="flex gap-2">
             <Badge variant="secondary" className="font-mono text-xs">
               {data.mainLanguage}
@@ -116,7 +116,7 @@ export function SystemOverview({ data, techStack }: SystemOverviewProps) {
               <div className="h-3 w-3 rounded-full bg-green-500/60" />
               <span className="ml-2 text-xs text-muted-foreground font-mono">terminal</span>
             </div>
-            <pre className="p-4 overflow-x-auto text-sm leading-relaxed">
+            <pre className="p-4 overflow-x-auto text-sm leading-relaxed whitespace-pre-wrap break-words">
               <code className="font-mono text-green-400">{data.gettingStarted}</code>
             </pre>
           </div>

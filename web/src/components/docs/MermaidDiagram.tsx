@@ -64,7 +64,7 @@ export function MermaidDiagram({ content }: { content: string }) {
   return (
     <div
       ref={containerRef}
-      className="rounded-lg border border-border/50 bg-muted/30 p-6 overflow-x-auto [&_svg]:mx-auto [&_svg]:max-w-full"
+      className="rounded-lg border border-border/50 bg-muted/30 p-4 md:p-6 overflow-x-auto [&_svg]:mx-auto [&_svg]:max-w-full"
     />
   );
 }

@@ -33,7 +33,7 @@ function TerminalBlock({ title, icon: Icon, content }: { title: string; icon: Re
           <div className="h-3 w-3 rounded-full bg-green-500/60" />
           <span className="ml-2 text-xs text-muted-foreground font-mono">terminal</span>
         </div>
-        <pre className="p-4 overflow-x-auto text-sm leading-relaxed">
+        <pre className="p-4 overflow-x-auto text-sm leading-relaxed whitespace-pre-wrap break-words">
           <code className="font-mono text-green-400">{content}</code>
         </pre>
       </div>
@@ -45,7 +45,7 @@ export function SetupGuide({ data }: SetupGuideProps) {
   if (!data) {
     return (
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold tracking-tight">Setup Guide</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Setup Guide</h1>
         <p className="text-muted-foreground">
           No setup guide is available for this repository yet. Re-index the
           repository to generate one.
@@ -57,7 +57,7 @@ export function SetupGuide({ data }: SetupGuideProps) {
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Setup Guide</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Setup Guide</h1>
         <p className="text-sm text-muted-foreground">
           Step-by-step instructions to get this project running locally.
         </p>

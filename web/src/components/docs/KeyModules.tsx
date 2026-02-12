@@ -29,7 +29,7 @@ function ModuleCard({ module, owner, repo }: { module: ModuleAnalysis; owner: st
                 </Badge>
               )}
             </div>
-            <code className="text-xs text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded">
+            <code className="text-xs text-muted-foreground font-mono bg-muted/50 px-1.5 py-0.5 rounded break-all">
               {module.modulePath}
             </code>
           </div>
@@ -61,14 +61,14 @@ function ModuleCard({ module, owner, repo }: { module: ModuleAnalysis; owner: st
                   </h4>
                   <div className="space-y-1.5">
                     {module.keyExports.map((exp, j) => (
-                      <div key={j} className="flex items-start gap-2 text-sm">
+                      <div key={j} className="flex flex-wrap items-start gap-x-2 gap-y-1 text-sm">
                         <Badge
                           variant="outline"
                           className="shrink-0 text-xs font-mono bg-primary/5"
                         >
                           {exp.type}
                         </Badge>
-                        <code className="font-mono text-xs text-primary/90">
+                        <code className="font-mono text-xs text-primary/90 break-all">
                           {exp.name}
                         </code>
                         <span className="text-muted-foreground text-xs">
@@ -149,7 +149,7 @@ export function KeyModules({ data, owner, repo }: { data: ModuleAnalysis[]; owne
   return (
     <div className="space-y-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Key Modules</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Key Modules</h1>
         <p className="text-sm text-muted-foreground">
           {data.length} module{data.length !== 1 ? "s" : ""} analyzed
         </p>
