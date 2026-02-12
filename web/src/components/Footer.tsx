@@ -1,4 +1,4 @@
-import { Github, Lightbulb } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 
 function XIcon({ className }: { className?: string }) {
   return (
@@ -24,25 +24,15 @@ export function Footer() {
             @stym06
           </a>
         </p>
-        <div className="flex items-center gap-4">
-          <a
-            href="https://x.com/stym06"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
-          >
-            <Lightbulb className="h-4 w-4" />
-            Request Feature
-          </a>
-          <a
-            href="https://github.com/stym06/quickgithub"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-gray-500 transition-colors hover:text-gray-300"
-          >
-            <Github className="h-5 w-5" />
-          </a>
-        </div>
+        <a
+          href="https://x.com/stym06"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-sm text-gray-500 transition-colors hover:text-gray-300"
+        >
+          <Lightbulb className="h-4 w-4" />
+          Request Feature
+        </a>
       </div>
     </footer>
   );
