@@ -38,10 +38,10 @@ const (
 	haikuMaxToks = 2048
 
 	// Estimated tokens to pre-reserve before an LLM call.
-	// Sonnet calls typically use ~6K input + ~2K output.
-	// Haiku calls are cheaper at ~3K input + ~1K output.
-	estimatedTokensSonnet = 8000
-	estimatedTokensHaiku  = 4000
+	// With full source code for key files, chunks can be up to 16K tokens
+	// plus system prompt and output. Haiku calls are cheaper.
+	estimatedTokensSonnet = 24000
+	estimatedTokensHaiku  = 8000
 
 	// Default: 500 RPM — the proactive limiter is effectively transparent.
 	// Actual pace is governed reactively by 429 + Retry-After parsing.
