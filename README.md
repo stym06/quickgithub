@@ -4,7 +4,11 @@ AI-powered documentation for any GitHub repository. Just add "quick" to any GitH
 
 `github.com/vercel/next.js` → `quickgithub.com/vercel/next.js`
 
-## What It Does
+🌐 **Try it now:** [quickgithub.com](https://quickgithub.com)
+
+![QuickGitHub Demo](quickgithub.gif)
+
+## ✨ What It Does
 
 Paste any public GitHub repo URL and get a beautiful, multi-page documentation site in under 60 seconds:
 
@@ -19,7 +23,7 @@ Paste any public GitHub repo URL and get a beautiful, multi-page documentation s
 
 Already-indexed repos are served instantly from cache.
 
-## Architecture
+## 🏗 Architecture
 
 ```
 Browser → Caddy (reverse proxy, auto-HTTPS)
@@ -32,7 +36,7 @@ Browser → Caddy (reverse proxy, auto-HTTPS)
                     → PostgreSQL 16 (users, repos, docs, chat)
 ```
 
-## Tech Stack
+## 🛠 Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
@@ -46,7 +50,7 @@ Browser → Caddy (reverse proxy, auto-HTTPS)
 | Cache/Queue | Redis 7 |
 | Reverse Proxy | Caddy (auto-HTTPS) |
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 quickgithub/
@@ -76,7 +80,7 @@ quickgithub/
 └── Makefile
 ```
 
-## Development Setup
+## 🚀 Development Setup
 
 ### Prerequisites
 
@@ -114,6 +118,6 @@ go run cmd/worker/main.go
 
 See `.env.example` files in `web/` and `worker/` directories.
 
-## License
+## 📄 License
 
 All rights reserved.
