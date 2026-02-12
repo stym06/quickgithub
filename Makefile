@@ -1,10 +1,15 @@
-.PHONY: dev build migrate worker docker-up docker-down setup clean deploy-worker deploy-web deploy logs-worker logs-web
+.PHONY: dev build build-web build-worker migrate worker docker-up docker-down setup clean deploy-worker deploy-web deploy logs-worker logs-web
 
 dev:
 	npm run dev
 
-build:
-	npm run build
+build: build-web build-worker
+
+build-web:
+	cd web && npm run build
+
+build-worker:
+	cd worker && go build -o quickgithub-worker ./cmd/worker
 
 migrate:
 	npx drizzle-kit push

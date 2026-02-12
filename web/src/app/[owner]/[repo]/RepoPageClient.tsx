@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DocsSidebar } from "@/components/docs/DocsSidebar";
 import { SystemOverview } from "@/components/docs/SystemOverview";
 import { IndexingProgress } from "@/components/IndexingProgress";
-import { Github } from "lucide-react";
+import { Github, RefreshCw } from "lucide-react";
 import type { Documentation, RepoStatus } from "@/types";
 
 type PageState =
@@ -136,6 +136,18 @@ export function RepoPageClient({
               <span className="text-xs text-muted-foreground">
                 Indexed on {new Date(pageState.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </span>
+            )}
+            {session && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleTriggerIndex}
+                disabled={triggering}
+                className="flex items-center gap-1.5"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${triggering ? "animate-spin" : ""}`} />
+                {triggering ? "Re-indexing..." : "Regenerate Docs"}
+              </Button>
             )}
             <a
               href={`https://github.com/${owner}/${repo}`}

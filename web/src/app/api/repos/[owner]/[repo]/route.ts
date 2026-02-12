@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDocsCache, setDocsCache, acquireIndexingLock, releaseIndexingLock, clearWorkerLock, clearWorkerLockIfStale, clearIndexingStatus } from "@/lib/redis";
+import { getDocsCache, setDocsCache, acquireIndexingLock, releaseIndexingLock, clearWorkerLock, clearWorkerLockIfStale, clearIndexingStatus, clearDocsCache } from "@/lib/redis";
 import { enqueueTask } from "@/lib/asynq";
 import { MAX_REPOS_PER_USER } from "@/lib/constants";
 
@@ -100,16 +100,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   if (existing) {
     if (existing.status === "COMPLETED") {
-      return NextResponse.json(
-        { error: "Repository already documented", repoId: existing.id },
-        { status: 409 }
-      );
-    }
-    // Allow re-submission for FAILED repos. For other statuses (PENDING,
-    // FETCHING, etc.) check if a worker is actually running by testing the
-    // worker-side Redis lock. If the lock is gone the previous attempt died
-    // and we should allow re-submission rather than leaving the repo stuck.
-    if (existing.status !== "FAILED") {
+      // Allow re-indexing: delete old documentation and clear cache
+      await prisma.documentation.deleteMany({
+        where: { repoId: existing.id },
+      });
+      await clearDocsCache(owner, repo);
+      await clearIndexingStatus(owner, repo);
+    } else if (existing.status !== "FAILED") {
+      // Allow re-submission for FAILED repos. For other statuses (PENDING,
+      // FETCHING, etc.) check if a worker is actually running by testing the
+      // worker-side Redis lock. If the lock is gone the previous attempt died
+      // and we should allow re-submission rather than leaving the repo stuck.
       const workerLockHeld = !(await clearWorkerLockIfStale(owner, repo));
       if (workerLockHeld) {
         return NextResponse.json(
@@ -191,11 +192,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     },
   });
 
-  // Increment user claimed count
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { reposClaimed: { increment: 1 } },
-  });
+  // Increment user claimed count only for new repos (not re-indexing)
+  if (!existing) {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { reposClaimed: { increment: 1 } },
+    });
+  }
 
   // Enqueue asynq task for the Go worker
   await enqueueTask({

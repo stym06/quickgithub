@@ -97,3 +97,10 @@ export async function clearIndexingStatus(
 ): Promise<void> {
   await redis.del(`indexing:${owner}/${repo}:status`);
 }
+
+export async function clearDocsCache(
+  owner: string,
+  repo: string
+): Promise<void> {
+  await redis.del(`docs:${owner}/${repo}:latest`);
+}
