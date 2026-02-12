@@ -38,5 +38,8 @@ web/*.pem
 .vscode/
 .idea/
 
+# Deploy notes
+DEPLOY.md
+
 # Claude
 .claude/
