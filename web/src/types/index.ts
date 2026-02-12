@@ -103,7 +103,8 @@ export type RepoStatus =
   | "PARSING"
   | "ANALYZING"
   | "COMPLETED"
-  | "FAILED";
+  | "FAILED"
+  | "STALLED";
 
 export interface IndexingStatus {
   status: RepoStatus;
