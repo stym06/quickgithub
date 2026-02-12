@@ -32,7 +32,7 @@ func Load() (*Config, error) {
 
 	emailFrom := os.Getenv("NOTIFICATION_FROM_EMAIL")
 	if emailFrom == "" {
-		emailFrom = "QuickGitHub <onboarding@resend.dev>"
+		emailFrom = "QuickGitHub <noreply@quickgithub.com>"
 	}
 	appBaseURL := os.Getenv("APP_BASE_URL")
 	if appBaseURL == "" {
