@@ -42,7 +42,8 @@ const (
 	defaultRateLimitRPM = 500
 
 	// Default TPM limit (input + output tokens combined per minute).
-	// Tune via LLM_RATE_LIMIT_TPM env var to match your Anthropic tier.
+	// Tune via LLM_RATE_LIMIT_TPM env var to match your provider's tier.
+	// OpenAI gpt-4o Tier 1 = 30,000 TPM; Anthropic Tier 2 = 200,000 TPM.
 	defaultRateLimitTPM = 200000
 )
 

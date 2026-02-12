@@ -12,7 +12,7 @@ import (
 
 const (
 	minChunkTokens = 2000
-	maxChunkTokens = 15000
+	maxChunkTokens = 8000
 	charsPerToken  = 4
 )
 
