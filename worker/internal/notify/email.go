@@ -39,7 +39,7 @@ func (c *EmailClient) SendIndexingComplete(ctx context.Context, to, repoFullName
 		return nil
 	}
 
-	link := fmt.Sprintf("%s/repos/%s", c.baseURL, repoFullName)
+	link := fmt.Sprintf("%s/%s", c.baseURL, repoFullName)
 	subject := fmt.Sprintf("Your docs for %s are ready!", repoFullName)
 	body := fmt.Sprintf(`<html><body>
 <h2>Your documentation is ready!</h2>
@@ -60,7 +60,7 @@ func (c *EmailClient) SendIndexingFailed(ctx context.Context, to, repoFullName, 
 		return nil
 	}
 
-	link := fmt.Sprintf("%s/repos/%s", c.baseURL, repoFullName)
+	link := fmt.Sprintf("%s/%s", c.baseURL, repoFullName)
 	subject := fmt.Sprintf("We couldn't index %s", repoFullName)
 	body := fmt.Sprintf(`<html><body>
 <h2>Indexing failed</h2>
