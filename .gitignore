@@ -1,0 +1,42 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Private prompts (not open-sourced)
+worker/internal/llm/prompts.json
+
+# OS
+.DS_Store
+
+# Go
+worker/tmp/
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+web/build/
+web/.pnp
+web/.pnp.*
+web/.yarn/*
+!web/.yarn/patches
+!web/.yarn/plugins
+!web/.yarn/releases
+!web/.yarn/versions
+web/coverage/
+web/.vercel
+web/*.tsbuildinfo
+web/next-env.d.ts
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*
+web/.pnpm-debug.log*
+web/*.pem
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/

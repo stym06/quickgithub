@@ -1,0 +1,8 @@
+quickgithub.com {
+	reverse_proxy localhost:3000
+}
+
+# Local development - access via http://localhost
+http://localhost {
+	reverse_proxy localhost:3000
+}
