@@ -8,18 +8,19 @@ import (
 
 // Config holds all worker configuration loaded from environment variables.
 type Config struct {
-	DatabaseURL       string
-	RedisURL          string
-	AnthropicAPIKey   string
-	OpenAIAPIKey      string
-	LLMProvider       string // "anthropic" or "openai"
-	WorkerConcurrency int
-	MaxFilesPerRepo   int
-	MaxFileSizeBytes  int
-	APIPort           string // HTTP port for enqueue API
-	ResendAPIKey      string // RESEND_API_KEY (optional — no email if empty)
-	EmailFrom         string // NOTIFICATION_FROM_EMAIL
-	AppBaseURL        string // APP_BASE_URL for constructing links
+	DatabaseURL              string
+	RedisURL                 string
+	AnthropicAPIKey          string
+	OpenAIAPIKey             string
+	LLMProvider              string // "anthropic" or "openai"
+	WorkerConcurrency        int
+	MaxFilesPerRepo          int
+	MaxFileSizeBytes         int
+	MaxCriticalFileSizeBytes int    // Higher limit for critical files (READMEs, configs)
+	APIPort                  string // HTTP port for enqueue API
+	ResendAPIKey             string // RESEND_API_KEY (optional — no email if empty)
+	EmailFrom                string // NOTIFICATION_FROM_EMAIL
+	AppBaseURL               string // APP_BASE_URL for constructing links
 }
 
 // Load reads configuration from environment variables, applying defaults where appropriate.
@@ -44,10 +45,11 @@ func Load() (*Config, error) {
 		AnthropicAPIKey:   os.Getenv("ANTHROPIC_API_KEY"),
 		OpenAIAPIKey:      os.Getenv("OPENAI_API_KEY"),
 		LLMProvider:       provider,
-		WorkerConcurrency: 5,
-		MaxFilesPerRepo:   500,
-		MaxFileSizeBytes:  102400,
-		APIPort:           "8080",
+		WorkerConcurrency:        5,
+		MaxFilesPerRepo:          2000,
+		MaxFileSizeBytes:         102400,
+		MaxCriticalFileSizeBytes: 512000,
+		APIPort:                  "8080",
 		ResendAPIKey:      os.Getenv("RESEND_API_KEY"),
 		EmailFrom:         emailFrom,
 		AppBaseURL:        appBaseURL,

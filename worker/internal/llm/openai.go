@@ -110,6 +110,12 @@ func (c *Client) callOpenAIWithTools(ctx context.Context, system string, message
 		return nil, err
 	}
 
+	// Pre-reserve estimated token budget.
+	if err := c.reserveTokens(ctx, estimatedTokensSonnet); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
 	start := time.Now()
 	oaiMessages := convertMessages(system, messages)
 	oaiTools := convertTools(tools)
@@ -174,7 +180,7 @@ func (c *Client) callOpenAIWithTools(ctx context.Context, system string, message
 			attribute.Int("gen_ai.usage.output_tokens", outputTok),
 		)
 		recordLLMMetrics(ctx, OpenAIModelMain, "openai", inputTok, outputTok, durationMs)
-		c.consumeTokens(ctx, inputTok+outputTok)
+		c.consumeTokens(ctx, inputTok+outputTok, estimatedTokensSonnet)
 
 		msg := resp.Choices[0].Message
 		if len(msg.ToolCalls) == 0 {
@@ -212,6 +218,12 @@ func (c *Client) callOpenAIText(ctx context.Context, system string, messages []a
 	defer span.End()
 
 	if err := c.waitForRateLimit(ctx); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Pre-reserve estimated token budget for fast model.
+	if err := c.reserveTokens(ctx, estimatedTokensHaiku); err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
@@ -273,7 +285,7 @@ func (c *Client) callOpenAIText(ctx context.Context, system string, messages []a
 			attribute.Int("gen_ai.usage.output_tokens", outputTok),
 		)
 		recordLLMMetrics(ctx, OpenAIModelFast, "openai", inputTok, outputTok, durationMs)
-		c.consumeTokens(ctx, inputTok+outputTok)
+		c.consumeTokens(ctx, inputTok+outputTok, estimatedTokensHaiku)
 
 		return &CallResult{
 			Text:         resp.Choices[0].Message.Content,

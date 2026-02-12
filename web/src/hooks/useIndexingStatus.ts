@@ -19,7 +19,7 @@ export function useIndexingStatus(owner: string, repo: string, enabled: boolean)
         const data = JSON.parse(event.data) as IndexingStatus;
         setStatus(data);
 
-        if (data.status === "COMPLETED" || data.status === "FAILED") {
+        if (data.status === "COMPLETED" || data.status === "FAILED" || data.status === "STALLED") {
           es.close();
         }
       } catch {

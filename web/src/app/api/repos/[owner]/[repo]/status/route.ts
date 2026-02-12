@@ -1,7 +1,9 @@
 import { NextRequest } from "next/server";
-import { getIndexingStatus } from "@/lib/redis";
+import { getIndexingStatus, clearWorkerLockIfStale } from "@/lib/redis";
 import { prisma } from "@/lib/prisma";
 import { SSE_TIMEOUT } from "@/lib/constants";
+
+const IN_PROGRESS_STATUSES = ["PENDING", "FETCHING", "PARSING", "ANALYZING"];
 
 type RouteParams = { params: Promise<{ owner: string; repo: string }> };
 
@@ -70,6 +72,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             });
 
             if (repoRecord) {
+              // If DB shows in-progress but Redis status is gone AND
+              // worker lock is gone, the worker died — tell user to retry.
+              if (
+                IN_PROGRESS_STATUSES.includes(repoRecord.status) &&
+                (await clearWorkerLockIfStale(owner, repo))
+              ) {
+                sendEvent({
+                  status: "STALLED",
+                  progress: repoRecord.progress,
+                  message:
+                    "Indexing appears to have stalled. Please try again.",
+                });
+                close();
+                return;
+              }
+
               sendEvent({
                 status: repoRecord.status,
                 progress: repoRecord.progress,

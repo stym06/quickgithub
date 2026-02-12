@@ -167,7 +167,7 @@ func (h *TaskHandler) HandleIndexRepo(ctx context.Context, t *asynq.Task) error 
 	log.Printf("[%s] fetched tree with %d entries", repoSlug, len(tree))
 
 	// Stage: Filter tree.
-	filtered := ghclient.FilterTree(tree, h.Config.MaxFilesPerRepo, h.Config.MaxFileSizeBytes)
+	filtered := ghclient.FilterTree(tree, h.Config.MaxFilesPerRepo, h.Config.MaxFileSizeBytes, h.Config.MaxCriticalFileSizeBytes)
 	log.Printf("[%s] filtered to %d files", repoSlug, len(filtered))
 
 	// Stage: Download files.
@@ -181,7 +181,13 @@ func (h *TaskHandler) HandleIndexRepo(ctx context.Context, t *asynq.Task) error 
 		paths[i] = entry.Path
 	}
 
-	files, err := gh.FetchFiles(ctx, payload.Owner, payload.Repo, "HEAD", paths, h.Config.MaxFileSizeBytes)
+	// Use the critical file size limit for downloads since FilterTree may have
+	// included critical files up to MaxCriticalFileSizeBytes.
+	downloadSizeLimit := h.Config.MaxCriticalFileSizeBytes
+	if downloadSizeLimit < h.Config.MaxFileSizeBytes {
+		downloadSizeLimit = h.Config.MaxFileSizeBytes
+	}
+	files, err := gh.FetchFiles(ctx, payload.Owner, payload.Repo, "HEAD", paths, downloadSizeLimit)
 	fetchFilesSpan.SetAttributes(attribute.Int("files.downloaded", len(files)))
 	fetchFilesSpan.End()
 	if err != nil {
@@ -233,7 +239,16 @@ func (h *TaskHandler) HandleIndexRepo(ctx context.Context, t *asynq.Task) error 
 		}
 
 		pfs.Path = filePath
-		structures = append(structures, convertFileStructure(pfs))
+		fs := convertFileStructure(pfs)
+
+		// Attach full source code for key files so the LLM can produce
+		// deeper, more accurate documentation.
+		if isKeyFile(filePath) {
+			fs.IsKeyFile = true
+			fs.SourceCode = string(content)
+		}
+
+		structures = append(structures, fs)
 	}
 	parseSpan.SetAttributes(attribute.Int("files.parsed", len(structures)))
 	parseSpan.End()
@@ -297,6 +312,41 @@ func (h *TaskHandler) HandleIndexRepo(ctx context.Context, t *asynq.Task) error 
 	log.Printf("[%s] indexing completed in %v", repoSlug, time.Since(start))
 
 	return nil
+}
+
+// isKeyFile returns true for files whose full source code should be sent to the
+// LLM instead of just parsed signatures. These are entry points, READMEs, and
+// config files that provide critical context for documentation generation.
+func isKeyFile(filePath string) bool {
+	base := strings.ToLower(filepath.Base(filePath))
+	nameNoExt := strings.TrimSuffix(base, filepath.Ext(base))
+
+	// READMEs and config files.
+	switch base {
+	case "readme.md", "readme", "readme.rst", "readme.txt",
+		"package.json", "go.mod", "cargo.toml", "pyproject.toml",
+		"setup.py", "requirements.txt", "gemfile", "pom.xml",
+		"build.gradle", "composer.json",
+		"dockerfile", "makefile",
+		"docker-compose.yml", "docker-compose.yaml":
+		return true
+	}
+
+	// Entry point files.
+	entryPointNames := map[string]bool{
+		"main": true, "index": true, "app": true, "server": true, "cli": true,
+	}
+	if entryPointNames[nameNoExt] {
+		return true
+	}
+
+	// cmd/**/*.go (Go CLI entry points).
+	parts := strings.Split(filePath, "/")
+	if len(parts) >= 2 && strings.ToLower(parts[0]) == "cmd" {
+		return true
+	}
+
+	return false
 }
 
 // isPackageFile returns true for files that contain project metadata.

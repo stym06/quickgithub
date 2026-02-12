@@ -19,9 +19,6 @@ var excludedDirs = map[string]bool{
 	"coverage":           true,
 	"venv":               true,
 	".venv":              true,
-	"__tests__":          true,
-	"tests":              true,
-	"test":               true,
 	"test_data":          true,
 	"testdata":           true,
 	".github/workflows":  true,
@@ -107,11 +104,18 @@ var alwaysSkipContains = []string{
 }
 
 // FilterTree filters tree entries to the most relevant files for documentation.
-func FilterTree(entries []TreeEntry, maxFiles, maxSizeBytes int) []TreeEntry {
+// maxCriticalSizeBytes is a higher size limit for tier-0 critical files (READMEs, configs).
+// If maxCriticalSizeBytes <= 0, it defaults to maxSizeBytes.
+func FilterTree(entries []TreeEntry, maxFiles, maxSizeBytes int, maxCriticalSizeBytes ...int) []TreeEntry {
+	criticalSize := maxSizeBytes
+	if len(maxCriticalSizeBytes) > 0 && maxCriticalSizeBytes[0] > 0 {
+		criticalSize = maxCriticalSizeBytes[0]
+	}
+
 	var filtered []TreeEntry
 
 	for _, entry := range entries {
-		if shouldInclude(entry, maxSizeBytes) {
+		if shouldInclude(entry, maxSizeBytes, criticalSize) {
 			filtered = append(filtered, entry)
 		}
 	}
@@ -123,13 +127,17 @@ func FilterTree(entries []TreeEntry, maxFiles, maxSizeBytes int) []TreeEntry {
 	return prioritize(filtered, maxFiles)
 }
 
-func shouldInclude(entry TreeEntry, maxSizeBytes int) bool {
-	// Size check.
-	if entry.Size > maxSizeBytes {
+func shouldInclude(entry TreeEntry, maxSizeBytes, maxCriticalSizeBytes int) bool {
+	base := filepath.Base(entry.Path)
+
+	// Critical files get a higher size limit.
+	sizeLimit := maxSizeBytes
+	if isCriticalFile(base) {
+		sizeLimit = maxCriticalSizeBytes
+	}
+	if entry.Size > sizeLimit {
 		return false
 	}
-
-	base := filepath.Base(entry.Path)
 
 	// Always-skip patterns.
 	for _, suffix := range alwaysSkipSuffixes {
@@ -174,46 +182,170 @@ func shouldInclude(entry TreeEntry, maxSizeBytes int) bool {
 	return true
 }
 
+// isCriticalFile returns true for files that deserve a higher size limit.
+func isCriticalFile(baseName string) bool {
+	lower := strings.ToLower(baseName)
+	switch lower {
+	case "readme.md", "readme", "readme.rst", "readme.txt",
+		"package.json", "go.mod", "cargo.toml", "pyproject.toml",
+		"setup.py", "requirements.txt", "gemfile", "pom.xml",
+		"build.gradle", "composer.json":
+		return true
+	}
+	return false
+}
+
 // tier classifies a file into priority tiers for selection when over the limit.
+// Tier 0: Critical project files (READMEs, manifests, configs).
+// Tier 1: Entry points (main.go, index.ts, app.py, cmd/**/*.go, src/main.*, etc.).
+// Tier 2: Source code in recognized source directories.
+// Tier 3: Other source files not in recognized directories.
+// Tier 4: Test files, examples, docs, fixtures.
 func tier(entry TreeEntry) int {
 	base := filepath.Base(entry.Path)
 	baseLower := strings.ToLower(base)
+	pathLower := strings.ToLower(entry.Path)
+	parts := strings.Split(entry.Path, "/")
 
-	// Tier 1: critical project files.
-	tier1Files := []string{
-		"readme.md", "readme", "package.json", "go.mod", "cargo.toml",
-		"pyproject.toml", "setup.py", "requirements.txt", "gemfile",
+	// Tier 0: Critical project files.
+	tier0Files := map[string]bool{
+		"readme.md": true, "readme": true, "readme.rst": true, "readme.txt": true,
+		"package.json": true, "go.mod": true, "cargo.toml": true,
+		"pyproject.toml": true, "setup.py": true, "requirements.txt": true,
+		"gemfile": true, "pom.xml": true, "build.gradle": true,
+		"composer.json": true, "dockerfile": true, "makefile": true,
+		"docker-compose.yml": true, "docker-compose.yaml": true,
 	}
-	for _, f := range tier1Files {
-		if baseLower == f {
+	if tier0Files[baseLower] {
+		return 0
+	}
+
+	// Tier 4: Test files, examples, docs, fixtures (check early to deprioritize).
+	if isTestOrAuxFile(pathLower, baseLower) {
+		return 4
+	}
+
+	// Tier 1: Entry points.
+	nameNoExt := strings.TrimSuffix(baseLower, filepath.Ext(baseLower))
+	entryPointNames := map[string]bool{
+		"main": true, "index": true, "app": true, "server": true, "cli": true,
+	}
+	if entryPointNames[nameNoExt] {
+		return 1
+	}
+	// cmd/**/*.go pattern (Go CLI entry points).
+	if len(parts) >= 2 && strings.ToLower(parts[0]) == "cmd" {
+		return 1
+	}
+	// src/main.*, src/index.*, src/app.* patterns.
+	if len(parts) >= 2 && strings.ToLower(parts[0]) == "src" && entryPointNames[nameNoExt] {
+		return 1
+	}
+	// bin/ directory files.
+	for _, part := range parts[:len(parts)-1] {
+		if strings.ToLower(part) == "bin" {
 			return 1
 		}
 	}
-	// Main/index files.
-	nameNoExt := strings.TrimSuffix(baseLower, filepath.Ext(baseLower))
-	if nameNoExt == "main" || nameNoExt == "index" || nameNoExt == "app" || nameNoExt == "mod" {
-		return 1
-	}
 
-	// Tier 2: source directories (check any path component, not just prefix).
-	tier2Dirs := map[string]bool{
-		"src": true, "lib": true, "pkg": true, "cmd": true, "app": true, "internal": true,
+	// Tier 2: Source code in recognized source directories.
+	sourceDirs := map[string]bool{
+		"src": true, "lib": true, "pkg": true, "cmd": true, "app": true,
+		"internal": true, "core": true, "api": true, "server": true,
+		"services": true, "handlers": true, "controllers": true, "models": true,
+		"routes": true, "middleware": true, "components": true, "pages": true,
 	}
-	parts := strings.Split(entry.Path, "/")
 	for _, part := range parts[:len(parts)-1] {
-		if tier2Dirs[part] {
+		if sourceDirs[strings.ToLower(part)] {
 			return 2
 		}
 	}
 
-	// Tier 3: everything else (examples, scripts, configs).
+	// Tier 3: Everything else.
 	return 3
 }
 
+// isTestOrAuxFile returns true for test files, examples, docs, and fixtures.
+func isTestOrAuxFile(pathLower, baseLower string) bool {
+	// Test file patterns.
+	if strings.HasSuffix(baseLower, "_test.go") ||
+		strings.HasSuffix(baseLower, ".test.ts") ||
+		strings.HasSuffix(baseLower, ".test.tsx") ||
+		strings.HasSuffix(baseLower, ".test.js") ||
+		strings.HasSuffix(baseLower, ".test.jsx") ||
+		strings.HasSuffix(baseLower, ".spec.ts") ||
+		strings.HasSuffix(baseLower, ".spec.tsx") ||
+		strings.HasSuffix(baseLower, ".spec.js") ||
+		strings.HasSuffix(baseLower, ".spec.jsx") ||
+		strings.HasPrefix(baseLower, "test_") ||
+		strings.HasSuffix(baseLower, "_test.py") {
+		return true
+	}
+
+	// Directories that indicate non-primary content.
+	auxDirs := map[string]bool{
+		"examples": true, "example": true, "docs": true, "doc": true,
+		"fixtures": true, "fixture": true, "mocks": true, "mock": true,
+		"stubs": true, "samples": true, "sample": true, "demo": true,
+		"demos": true, "benchmarks": true, "benchmark": true,
+		"e2e": true, "cypress": true, "playwright": true,
+		"stories": true, "storybook": true, ".storybook": true,
+	}
+	parts := strings.Split(pathLower, "/")
+	for _, part := range parts[:len(parts)-1] {
+		if auxDirs[part] {
+			return true
+		}
+	}
+
+	return false
+}
+
+// detectPackages finds package root directories (those containing manifests)
+// to enable fair monorepo representation.
+func detectPackages(entries []TreeEntry) map[string]bool {
+	manifestFiles := map[string]bool{
+		"package.json": true, "go.mod": true, "cargo.toml": true,
+		"pyproject.toml": true, "setup.py": true, "pom.xml": true,
+		"build.gradle": true, "composer.json": true, "gemfile": true,
+	}
+
+	pkgRoots := make(map[string]bool)
+	for _, entry := range entries {
+		base := strings.ToLower(filepath.Base(entry.Path))
+		if !manifestFiles[base] {
+			continue
+		}
+		dir := filepath.Dir(entry.Path)
+		if dir == "." {
+			dir = ""
+		}
+		// Only count subdirectory manifests (not the root one).
+		if dir != "" {
+			pkgRoots[dir] = true
+		}
+	}
+	return pkgRoots
+}
+
+// packageRoot returns the monorepo package root for a file path, or "" if it
+// doesn't belong to a detected package.
+func packageRoot(filePath string, pkgRoots map[string]bool) string {
+	dir := filepath.Dir(filePath)
+	for dir != "." && dir != "" {
+		if pkgRoots[dir] {
+			return dir
+		}
+		dir = filepath.Dir(dir)
+	}
+	return ""
+}
+
 func prioritize(entries []TreeEntry, maxFiles int) []TreeEntry {
+	pkgRoots := detectPackages(entries)
+	isMonorepo := len(pkgRoots) > 1
+
 	// Sort: by tier, then alphabetically within each tier.
-	// Depth is NOT used as a tiebreaker — deeply nested source files are just
-	// as important as shallow ones.
 	sort.Slice(entries, func(i, j int) bool {
 		ti, tj := tier(entries[i]), tier(entries[j])
 		if ti != tj {
@@ -222,8 +354,55 @@ func prioritize(entries []TreeEntry, maxFiles int) []TreeEntry {
 		return entries[i].Path < entries[j].Path
 	})
 
-	if len(entries) > maxFiles {
-		entries = entries[:maxFiles]
+	if !isMonorepo || len(entries) <= maxFiles {
+		if len(entries) > maxFiles {
+			entries = entries[:maxFiles]
+		}
+		return entries
 	}
-	return entries
+
+	// Monorepo-aware selection: ensure each package gets fair representation.
+	// Reserve a portion of slots proportionally, then fill the rest by priority.
+	selected := make(map[int]bool)
+	pkgCounts := make(map[string]int) // files per package in result
+	totalPkgs := len(pkgRoots)
+
+	// Each package gets at least minPerPkg slots (from its highest-priority files).
+	minPerPkg := maxFiles / (totalPkgs + 1) // +1 for root/non-package files
+	if minPerPkg < 5 {
+		minPerPkg = 5
+	}
+	if minPerPkg > 100 {
+		minPerPkg = 100
+	}
+
+	// First pass: guarantee minimum representation per package.
+	for i, entry := range entries {
+		pkg := packageRoot(entry.Path, pkgRoots)
+		if pkg == "" {
+			continue
+		}
+		if pkgCounts[pkg] < minPerPkg {
+			selected[i] = true
+			pkgCounts[pkg]++
+		}
+	}
+
+	// Second pass: fill remaining slots by global priority order.
+	for i := range entries {
+		if len(selected) >= maxFiles {
+			break
+		}
+		if !selected[i] {
+			selected[i] = true
+		}
+	}
+
+	result := make([]TreeEntry, 0, len(selected))
+	for i, entry := range entries {
+		if selected[i] {
+			result = append(result, entry)
+		}
+	}
+	return result
 }

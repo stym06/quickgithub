@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -35,6 +36,12 @@ const (
 	maxBackoff   = 60 * time.Second
 	maxTokens    = 4096
 	haikuMaxToks = 2048
+
+	// Estimated tokens to pre-reserve before an LLM call.
+	// Sonnet calls typically use ~6K input + ~2K output.
+	// Haiku calls are cheaper at ~3K input + ~1K output.
+	estimatedTokensSonnet = 8000
+	estimatedTokensHaiku  = 4000
 
 	// Default: 500 RPM — the proactive limiter is effectively transparent.
 	// Actual pace is governed reactively by 429 + Retry-After parsing.
@@ -120,18 +127,42 @@ func (c *Client) waitForRateLimit(ctx context.Context) error {
 	return c.limiter.Wait(ctx)
 }
 
-// consumeTokens blocks until the TPM budget can accommodate the given number
-// of tokens. Call this after each LLM response with the actual token count;
-// it will delay the next call if the budget is running low.
-func (c *Client) consumeTokens(ctx context.Context, tokens int) {
-	if tokens <= 0 {
+// reserveTokens blocks until the TPM budget can accommodate the estimated
+// number of tokens for an upcoming request. Call this before making an LLM
+// call to proactively wait instead of getting 429 rate-limit errors.
+func (c *Client) reserveTokens(ctx context.Context, estimatedTokens int) error {
+	if estimatedTokens <= 0 {
+		return nil
+	}
+	return c.waitForTokenBudget(ctx, estimatedTokens)
+}
+
+// consumeTokens accounts for the difference between actual token usage and the
+// pre-reserved estimate. Call this after each LLM response. If actual usage
+// exceeded the estimate, it blocks until the extra tokens are replenished.
+func (c *Client) consumeTokens(ctx context.Context, actualTokens, reservedTokens int) {
+	extra := actualTokens - reservedTokens
+	if extra <= 0 {
 		return
 	}
-	// WaitN blocks until the token bucket has replenished enough capacity,
-	// effectively pacing subsequent calls to stay within the TPM limit.
-	if err := c.tokenLimiter.WaitN(ctx, tokens); err != nil {
+	if err := c.waitForTokenBudget(ctx, extra); err != nil {
 		log.Printf("TPM limiter wait interrupted: %v", err)
 	}
+}
+
+// waitForTokenBudget waits for the given number of tokens to become available
+// in the TPM budget. If tokens exceeds the limiter's burst size, it splits the
+// wait into smaller increments to avoid the "exceeds burst" error.
+func (c *Client) waitForTokenBudget(ctx context.Context, tokens int) error {
+	burst := c.tokenLimiter.Burst()
+	for tokens > 0 {
+		n := int(math.Min(float64(tokens), float64(burst)))
+		if err := c.tokenLimiter.WaitN(ctx, n); err != nil {
+			return fmt.Errorf("TPM limiter wait: %w", err)
+		}
+		tokens -= n
+	}
+	return nil
 }
 
 // retryBackoff returns the backoff duration for an attempt, capped at maxBackoff.
@@ -218,6 +249,13 @@ func (c *Client) callAnthropicWithTools(ctx context.Context, system string, mess
 		return nil, err
 	}
 
+	// Pre-reserve estimated token budget so we wait proactively instead of
+	// burning retries on 429 rate-limit errors.
+	if err := c.reserveTokens(ctx, estimatedTokensSonnet); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
 	start := time.Now()
 	var lastErr error
 
@@ -265,7 +303,7 @@ func (c *Client) callAnthropicWithTools(ctx context.Context, system string, mess
 			attribute.Int("gen_ai.usage.output_tokens", outputTok),
 		)
 		recordLLMMetrics(ctx, ModelSonnet, "anthropic", inputTok, outputTok, durationMs)
-		c.consumeTokens(ctx, inputTok+outputTok)
+		c.consumeTokens(ctx, inputTok+outputTok, estimatedTokensSonnet)
 
 		for _, block := range resp.Content {
 			if block.Type == "tool_use" {
@@ -302,6 +340,12 @@ func (c *Client) callAnthropicHaiku(ctx context.Context, system string, messages
 	defer span.End()
 
 	if err := c.waitForRateLimit(ctx); err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+
+	// Pre-reserve estimated token budget for Haiku.
+	if err := c.reserveTokens(ctx, estimatedTokensHaiku); err != nil {
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
@@ -345,7 +389,7 @@ func (c *Client) callAnthropicHaiku(ctx context.Context, system string, messages
 			attribute.Int("gen_ai.usage.output_tokens", outputTok),
 		)
 		recordLLMMetrics(ctx, ModelHaiku, "anthropic", inputTok, outputTok, durationMs)
-		c.consumeTokens(ctx, inputTok+outputTok)
+		c.consumeTokens(ctx, inputTok+outputTok, estimatedTokensHaiku)
 
 		var result string
 		for _, block := range resp.Content {

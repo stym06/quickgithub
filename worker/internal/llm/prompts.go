@@ -33,58 +33,28 @@ Use the generate_system_overview tool to provide the structured overview.`, read
 }
 
 // ModuleAnalysisPrompt builds messages for analyzing a directory chunk.
+// Key files include their full source code for deeper analysis; secondary files
+// include only parsed signatures.
 func ModuleAnalysisPrompt(modulePath string, structures []tasks.FileStructure) (string, []anthropic.MessageParam) {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("## Module: %s\n\n", modulePath))
 
 	for _, f := range structures {
-		sb.WriteString(fmt.Sprintf("### File: %s (%s)\n", f.Path, f.Language))
-
-		if len(f.Imports) > 0 {
-			sb.WriteString("**Imports:** " + strings.Join(f.Imports, ", ") + "\n")
-		}
-		if len(f.Exports) > 0 {
-			sb.WriteString("**Exports:** " + strings.Join(f.Exports, ", ") + "\n")
-		}
-
-		if len(f.Functions) > 0 {
-			sb.WriteString("**Functions:**\n")
-			for _, fn := range f.Functions {
-				exported := ""
-				if fn.IsExported {
-					exported = " [exported]"
-				}
-				sb.WriteString(fmt.Sprintf("- %s(%s) → %s%s\n", fn.Name, fn.Params, fn.ReturnType, exported))
-				if fn.DocComment != "" {
-					sb.WriteString(fmt.Sprintf("  // %s\n", fn.DocComment))
-				}
+		if f.IsKeyFile && f.SourceCode != "" {
+			// Key file: include full source code for deeper analysis.
+			sb.WriteString(fmt.Sprintf("### File: %s (%s) [KEY FILE — full source]\n", f.Path, f.Language))
+			sb.WriteString("```\n")
+			sb.WriteString(f.SourceCode)
+			if !strings.HasSuffix(f.SourceCode, "\n") {
+				sb.WriteString("\n")
 			}
+			sb.WriteString("```\n\n")
+		} else {
+			// Secondary file: include parsed signatures only.
+			sb.WriteString(fmt.Sprintf("### File: %s (%s)\n", f.Path, f.Language))
+			writeFileSignatures(&sb, f)
+			sb.WriteString("\n")
 		}
-
-		if len(f.Classes) > 0 {
-			sb.WriteString("**Classes/Structs:**\n")
-			for _, cls := range f.Classes {
-				exported := ""
-				if cls.IsExported {
-					exported = " [exported]"
-				}
-				sb.WriteString(fmt.Sprintf("- %s%s\n", cls.Name, exported))
-				if len(cls.Fields) > 0 {
-					sb.WriteString(fmt.Sprintf("  Fields: %s\n", strings.Join(cls.Fields, ", ")))
-				}
-				for _, m := range cls.Methods {
-					sb.WriteString(fmt.Sprintf("  - %s(%s) → %s\n", m.Name, m.Params, m.ReturnType))
-				}
-			}
-		}
-
-		if len(f.TypeDefs) > 0 {
-			sb.WriteString("**Type Definitions:** " + strings.Join(f.TypeDefs, ", ") + "\n")
-		}
-		if len(f.Constants) > 0 {
-			sb.WriteString("**Constants:** " + strings.Join(f.Constants, ", ") + "\n")
-		}
-		sb.WriteString("\n")
 	}
 
 	sb.WriteString("\nUse the analyze_module tool to provide the structured module analysis.")
@@ -96,6 +66,54 @@ func ModuleAnalysisPrompt(modulePath string, structures []tasks.FileStructure) (
 	}
 
 	return prompts.ModuleAnalysis, messages
+}
+
+// writeFileSignatures writes the parsed signature information for a file.
+func writeFileSignatures(sb *strings.Builder, f tasks.FileStructure) {
+	if len(f.Imports) > 0 {
+		sb.WriteString("**Imports:** " + strings.Join(f.Imports, ", ") + "\n")
+	}
+	if len(f.Exports) > 0 {
+		sb.WriteString("**Exports:** " + strings.Join(f.Exports, ", ") + "\n")
+	}
+
+	if len(f.Functions) > 0 {
+		sb.WriteString("**Functions:**\n")
+		for _, fn := range f.Functions {
+			exported := ""
+			if fn.IsExported {
+				exported = " [exported]"
+			}
+			sb.WriteString(fmt.Sprintf("- %s(%s) → %s%s\n", fn.Name, fn.Params, fn.ReturnType, exported))
+			if fn.DocComment != "" {
+				sb.WriteString(fmt.Sprintf("  // %s\n", fn.DocComment))
+			}
+		}
+	}
+
+	if len(f.Classes) > 0 {
+		sb.WriteString("**Classes/Structs:**\n")
+		for _, cls := range f.Classes {
+			exported := ""
+			if cls.IsExported {
+				exported = " [exported]"
+			}
+			sb.WriteString(fmt.Sprintf("- %s%s\n", cls.Name, exported))
+			if len(cls.Fields) > 0 {
+				sb.WriteString(fmt.Sprintf("  Fields: %s\n", strings.Join(cls.Fields, ", ")))
+			}
+			for _, m := range cls.Methods {
+				sb.WriteString(fmt.Sprintf("  - %s(%s) → %s\n", m.Name, m.Params, m.ReturnType))
+			}
+		}
+	}
+
+	if len(f.TypeDefs) > 0 {
+		sb.WriteString("**Type Definitions:** " + strings.Join(f.TypeDefs, ", ") + "\n")
+	}
+	if len(f.Constants) > 0 {
+		sb.WriteString("**Constants:** " + strings.Join(f.Constants, ", ") + "\n")
+	}
 }
 
 // SynthesisPrompt builds messages for the cross-cutting synthesis stage.

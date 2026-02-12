@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
@@ -56,17 +57,17 @@ func RunPipeline(
 	// Stage 2: Module Analysis (50-70%)
 	progressFn("ANALYZING", 50, "Analyzing code modules...")
 	chunks := ChunkByDirectory(structures)
-	modules, err := runModuleStage(ctx, client, chunks, progressFn)
+	moduleResult, err := runModuleStage(ctx, client, chunks, progressFn)
 	if err != nil {
 		return doc, fmt.Errorf("module stage: %w", err)
 	}
-	doc.KeyModules = modules
-	log.Printf("Stage 2 complete: %d modules analyzed", len(modules))
+	doc.KeyModules = moduleResult.Modules
+	log.Printf("Stage 2 complete: %d modules analyzed, %d skipped", len(moduleResult.Modules), len(moduleResult.SkippedModules))
 
 	// Stage 3: Synthesis (70-90%)
 	progressFn("ANALYZING", 70, "Synthesizing architecture and tech stack...")
 	overviewJSON, _ := json.Marshal(overview)
-	modulesJSON, _ := json.Marshal(modules)
+	modulesJSON, _ := json.Marshal(moduleResult.Modules)
 	synthesis, err := retryStage(ctx, "synthesis", stageLevelMaxAttempts, stageLevelCooldown, func() (tasks.SynthesisResult, error) {
 		return runSynthesisStage(ctx, client, string(overviewJSON), string(modulesJSON))
 	})
@@ -86,6 +87,10 @@ func RunPipeline(
 	if err != nil {
 		log.Printf("Warning: context generation failed: %v, using overview as fallback", err)
 		repoContext = fmt.Sprintf("%s\n\n%s", overview.Description, overview.Purpose)
+	}
+	if len(moduleResult.SkippedModules) > 0 {
+		repoContext += fmt.Sprintf("\n\nNote: %d module(s) could not be analyzed and were skipped: %s",
+			len(moduleResult.SkippedModules), strings.Join(moduleResult.SkippedModules, ", "))
 	}
 	doc.RepoContext = repoContext
 	log.Printf("Stage 4 complete: Q&A context generated")
@@ -122,8 +127,16 @@ func runOverviewStage(ctx context.Context, client *Client, readme, fileTree, pac
 	return overview, nil
 }
 
-// runModuleStage calls Claude Sonnet for each directory chunk.
-func runModuleStage(ctx context.Context, client *Client, chunks []tasks.DirectoryChunk, progressFn ProgressFunc) ([]tasks.ModuleAnalysis, error) {
+// moduleStageResult holds the output of the module analysis stage.
+type moduleStageResult struct {
+	Modules        []tasks.ModuleAnalysis
+	SkippedModules []string
+}
+
+// runModuleStage calls Claude Sonnet for each directory chunk with per-chunk
+// retries. Chunks that fail after all retries are skipped so the pipeline can
+// continue with partial results.
+func runModuleStage(ctx context.Context, client *Client, chunks []tasks.DirectoryChunk, progressFn ProgressFunc) (moduleStageResult, error) {
 	ctx, span := tracer.Start(ctx, "llm.pipeline.modules",
 		oteltrace.WithAttributes(
 			attribute.String("stage", "modules"),
@@ -132,37 +145,52 @@ func runModuleStage(ctx context.Context, client *Client, chunks []tasks.Director
 	)
 	defer span.End()
 
-	var modules []tasks.ModuleAnalysis
+	var res moduleStageResult
 	var totalInputTokens, totalOutputTokens int
 
 	for i, chunk := range chunks {
 		progress := 50 + (20 * (i + 1) / len(chunks))
 		progressFn("ANALYZING", progress, fmt.Sprintf("Analyzing module %d/%d: %s", i+1, len(chunks), chunk.DirPath))
 
-		module, result, err := analyzeChunk(ctx, client, chunk)
+		// Retry each chunk up to stageLevelMaxAttempts before skipping.
+		chunkCopy := chunk // capture for closure
+		type chunkResult struct {
+			module tasks.ModuleAnalysis
+			call   *CallResult
+		}
+		cr, err := retryStage(ctx, fmt.Sprintf("module:%s", chunk.DirPath), stageLevelMaxAttempts, stageLevelCooldown, func() (chunkResult, error) {
+			m, r, e := analyzeChunk(ctx, client, chunkCopy)
+			return chunkResult{m, r}, e
+		})
 		if err != nil {
-			log.Printf("Warning: failed to analyze module %s: %v, skipping", chunk.DirPath, err)
+			log.Printf("Skipping module %s after %d retries: %v", chunk.DirPath, stageLevelMaxAttempts, err)
+			res.SkippedModules = append(res.SkippedModules, chunk.DirPath)
 			continue
 		}
-		module.ModulePath = chunk.DirPath
-		modules = append(modules, module)
+		cr.module.ModulePath = chunk.DirPath
+		res.Modules = append(res.Modules, cr.module)
 
-		if result != nil {
-			totalInputTokens += result.InputTokens
-			totalOutputTokens += result.OutputTokens
+		if cr.call != nil {
+			totalInputTokens += cr.call.InputTokens
+			totalOutputTokens += cr.call.OutputTokens
 		}
 	}
 
 	span.SetAttributes(
 		attribute.Int("tokens.input", totalInputTokens),
 		attribute.Int("tokens.output", totalOutputTokens),
+		attribute.Int("modules.skipped", len(res.SkippedModules)),
 	)
 
-	if len(modules) == 0 {
-		return nil, fmt.Errorf("all module analyses failed")
+	if len(res.SkippedModules) > 0 {
+		log.Printf("Module analysis completed with %d skipped modules: %v", len(res.SkippedModules), res.SkippedModules)
 	}
 
-	return modules, nil
+	if len(res.Modules) == 0 {
+		return res, fmt.Errorf("all %d module analyses failed", len(chunks))
+	}
+
+	return res, nil
 }
 
 // analyzeChunk runs module analysis on a single directory chunk.

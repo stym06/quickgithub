@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDocsCache, setDocsCache, acquireIndexingLock, clearWorkerLock, clearWorkerLockIfStale, clearIndexingStatus } from "@/lib/redis";
+import { getDocsCache, setDocsCache, acquireIndexingLock, releaseIndexingLock, clearWorkerLock, clearWorkerLockIfStale, clearIndexingStatus } from "@/lib/redis";
 import { enqueueTask } from "@/lib/asynq";
 import { MAX_REPOS_PER_USER } from "@/lib/constants";
 
@@ -123,6 +123,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
       // Lock is gone — previous worker died. Clear stale state and allow re-index.
       await clearIndexingStatus(owner, repo);
+      await releaseIndexingLock(owner, repo);
     }
   }
 

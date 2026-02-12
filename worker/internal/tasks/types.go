@@ -165,14 +165,16 @@ type Documentation struct {
 
 // FileStructure holds parsed code structure for a single file.
 type FileStructure struct {
-	Path      string        `json:"path"`
-	Language  string        `json:"language"`
-	Imports   []string      `json:"imports"`
-	Exports   []string      `json:"exports"`
-	Functions []FunctionSig `json:"functions"`
-	Classes   []ClassSig    `json:"classes"`
-	Constants []string      `json:"constants"`
-	TypeDefs  []string      `json:"typeDefs"`
+	Path       string        `json:"path"`
+	Language   string        `json:"language"`
+	Imports    []string      `json:"imports"`
+	Exports    []string      `json:"exports"`
+	Functions  []FunctionSig `json:"functions"`
+	Classes    []ClassSig    `json:"classes"`
+	Constants  []string      `json:"constants"`
+	TypeDefs   []string      `json:"typeDefs"`
+	SourceCode string        `json:"sourceCode,omitempty"` // Full source for key files
+	IsKeyFile  bool          `json:"isKeyFile,omitempty"`  // Whether this is a key file
 }
 
 // FunctionSig represents a function signature extracted by tree-sitter.

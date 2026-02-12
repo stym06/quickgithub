@@ -10,6 +10,7 @@ const STAGE_LABELS: Record<string, string> = {
   ANALYZING: "Analyzing with AI",
   COMPLETED: "Documentation ready!",
   FAILED: "Indexing failed",
+  STALLED: "Indexing stalled",
 };
 
 export function IndexingProgress({
@@ -53,7 +54,7 @@ export function IndexingProgress({
         <span>{progress}%</span>
       </div>
 
-      {stage !== "COMPLETED" && stage !== "FAILED" && (
+      {stage !== "COMPLETED" && stage !== "FAILED" && stage !== "STALLED" && (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <Mail className="h-4 w-4" />
           <span>You&apos;ll be notified via email once indexing completes.</span>
@@ -63,6 +64,12 @@ export function IndexingProgress({
       {stage === "FAILED" && (
         <div className="bg-destructive/10 text-destructive rounded-lg p-4 text-sm">
           {message || "An error occurred during indexing. Please try again later."}
+        </div>
+      )}
+
+      {stage === "STALLED" && (
+        <div className="bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 rounded-lg p-4 text-sm">
+          Indexing appears to have stalled. Please try again in a few minutes.
         </div>
       )}
 

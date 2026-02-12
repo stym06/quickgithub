@@ -12,7 +12,7 @@ import (
 
 const (
 	minChunkTokens = 2000
-	maxChunkTokens = 8000
+	maxChunkTokens = 16000
 	charsPerToken  = 4
 )
 
@@ -127,17 +127,45 @@ func splitLargeChunks(chunks []tasks.DirectoryChunk) []tasks.DirectoryChunk {
 		currentTokens := 0
 		partIdx := 0
 
+		flushCurrent := func() {
+			if len(current) == 0 {
+				return
+			}
+			dirPath := ch.DirPath
+			if partIdx > 0 || currentTokens > 0 {
+				dirPath = fmt.Sprintf("%s (part %d)", ch.DirPath, partIdx)
+			}
+			result = append(result, tasks.DirectoryChunk{
+				DirPath:       dirPath,
+				Files:         current,
+				TokenEstimate: currentTokens,
+			})
+			current = nil
+			currentTokens = 0
+			partIdx++
+		}
+
 		for _, files := range subGroups {
 			est := estimateTokens(files)
+
+			// If this subdirectory itself exceeds the limit, split its
+			// individual files across multiple chunks.
+			if est > maxChunkTokens {
+				// Flush anything accumulated so far.
+				flushCurrent()
+				for _, f := range files {
+					fEst := estimateTokens([]tasks.FileStructure{f})
+					if currentTokens+fEst > maxChunkTokens && len(current) > 0 {
+						flushCurrent()
+					}
+					current = append(current, f)
+					currentTokens += fEst
+				}
+				continue
+			}
+
 			if currentTokens+est > maxChunkTokens && len(current) > 0 {
-				result = append(result, tasks.DirectoryChunk{
-					DirPath:       fmt.Sprintf("%s (part %d)", ch.DirPath, partIdx),
-					Files:         current,
-					TokenEstimate: currentTokens,
-				})
-				current = nil
-				currentTokens = 0
-				partIdx++
+				flushCurrent()
 			}
 			current = append(current, files...)
 			currentTokens += est
