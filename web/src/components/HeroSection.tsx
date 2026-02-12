@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, FolderTree, Layers, Code, ArrowRight } from "lucide-react";
+import { FileText, FolderTree, Layers, Code, ArrowRight, Github } from "lucide-react";
 import { RepoUrlInput } from "./RepoUrlInput";
 
 export function HeroSection() {
@@ -54,6 +54,23 @@ export function HeroSection() {
           >
             Paste any GitHub URL &rarr; get docs in 60 seconds
           </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="mt-6"
+          >
+            <a
+              href="https://github.com/stym06/quickgithub"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Github className="h-5 w-5" />
+              View on GitHub
+            </a>
+          </motion.div>
         </div>
 
         {/* Right side — URL transform + doc wireframe animation */}
