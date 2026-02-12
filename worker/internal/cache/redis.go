@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -69,5 +70,31 @@ func ReleaseLock(ctx context.Context, client *redis.Client, owner, repo string) 
 	if err := client.Del(ctx, key).Err(); err != nil {
 		return fmt.Errorf("releasing lock: %w", err)
 	}
+	return nil
+}
+
+// ClearAllLocks removes all indexing locks. Safe to call on startup
+// in a single-worker deployment — any existing locks are stale.
+func ClearAllLocks(ctx context.Context, client *redis.Client) error {
+	var cursor uint64
+	pattern := lockPrefix + "*"
+
+	for {
+		keys, nextCursor, err := client.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			return fmt.Errorf("scanning for stale locks: %w", err)
+		}
+		if len(keys) > 0 {
+			if err := client.Del(ctx, keys...).Err(); err != nil {
+				return fmt.Errorf("deleting stale locks: %w", err)
+			}
+			log.Printf("cleared %d stale indexing lock(s)", len(keys))
+		}
+		cursor = nextCursor
+		if cursor == 0 {
+			break
+		}
+	}
+
 	return nil
 }

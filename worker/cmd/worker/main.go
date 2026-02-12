@@ -52,6 +52,10 @@ func main() {
 	}
 	defer redisClient.Close()
 
+	if err := cache.ClearAllLocks(ctx, redisClient); err != nil {
+		log.Printf("warning: failed to clear stale locks: %v", err)
+	}
+
 	llmClient := llm.NewClient(cfg.LLMProvider, cfg.AnthropicAPIKey, cfg.OpenAIAPIKey)
 	log.Printf("using LLM provider: %s", cfg.LLMProvider)
 
