@@ -35,7 +35,7 @@ function getLanguageColor(language: string) {
 
 export function HeroSection({ repos = [] }: { repos?: DocumentedRepo[] }) {
   return (
-    <section className="relative flex min-h-svh items-center px-4 pb-8 pt-24 sm:min-h-[85vh] sm:pb-0 sm:pt-20">
+    <section className="relative flex min-h-svh items-center overflow-x-hidden px-4 pb-8 pt-24 sm:min-h-[85vh] sm:pb-0 sm:pt-20">
       {/* Background gradient */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute left-1/2 top-0 h-[400px] w-[500px] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[120px] sm:h-[600px] sm:w-[800px]" />
@@ -44,7 +44,7 @@ export function HeroSection({ repos = [] }: { repos?: DocumentedRepo[] }) {
       <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-col items-center gap-8 sm:gap-12">
         <div className="flex w-full flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-12">
         {/* Left side — text + input */}
-        <div className="flex-1 text-center lg:text-left">
+        <div className="w-full min-w-0 flex-1 text-center lg:text-left">
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -80,6 +80,7 @@ export function HeroSection({ repos = [] }: { repos?: DocumentedRepo[] }) {
         </div>
 
         {/* Right side — URL transform + doc wireframe animation */}
+        {/* Mobile: blurred background, Desktop: normal */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
@@ -252,7 +253,7 @@ function RepoTicker({ repos }: { repos: DocumentedRepo[] }) {
   const trackRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div className="relative">
+    <div className="relative overflow-hidden">
       {/* Factory icons row */}
       <div className="relative mb-2 flex items-end justify-between px-4 sm:px-6">
         {/* Left: QuickGitHub output */}

@@ -64,7 +64,7 @@ export function RepoUrlInput() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-xl">
+    <form onSubmit={handleSubmit} className="w-full">
       <div className="group relative flex items-center rounded-2xl border border-white/10 bg-white/5 transition-colors focus-within:border-emerald-400/50 focus-within:bg-white/[0.07]">
         <Github className="ml-3 h-5 w-5 shrink-0 text-gray-500 sm:ml-4" />
         <input

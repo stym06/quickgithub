@@ -33,7 +33,7 @@ export default async function Home() {
   const documentedRepos = await getDocumentedRepos();
 
   return (
-    <div className="min-h-screen bg-gray-950">
+    <div className="min-h-screen overflow-x-hidden bg-gray-950">
       <Navbar />
       <HeroSection repos={documentedRepos} />
       <HowItWorks />
