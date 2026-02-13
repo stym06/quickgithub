@@ -128,7 +128,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Check user repo limit
+  // Check user repo limit (skip for admin)
+  const isAdmin = process.env.ADMIN_USER_ID && session.user.id === process.env.ADMIN_USER_ID;
+
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },
   });
@@ -137,7 +139,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  if (user.reposClaimed >= MAX_REPOS_PER_USER) {
+  if (!isAdmin && user.reposClaimed >= MAX_REPOS_PER_USER) {
     return NextResponse.json(
       {
         error: `Free tier limit: max ${MAX_REPOS_PER_USER} repo(s)`,
