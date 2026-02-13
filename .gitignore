@@ -11,6 +11,7 @@ worker/internal/llm/prompts.json
 
 # Go
 worker/tmp/
+worker/quickgithub-worker
 
 # Node / Next.js
 web/node_modules/
