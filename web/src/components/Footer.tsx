@@ -11,7 +11,7 @@ function XIcon({ className }: { className?: string }) {
 export function Footer() {
   return (
     <footer className="border-t border-white/10 py-8">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 sm:px-6">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 sm:flex-row sm:justify-between sm:gap-0 sm:px-6">
         <p className="text-sm text-gray-500">
           Built by{" "}
           <a

@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { Navbar } from "@/components/Navbar";
 import { HeroSection } from "@/components/HeroSection";
-import { FeaturedRepos } from "@/components/FeaturedRepos";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Footer } from "@/components/Footer";
 import { IndexingBanner } from "@/components/IndexingBanner";
@@ -36,8 +35,7 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-gray-950">
       <Navbar />
-      <HeroSection />
-      <FeaturedRepos repos={documentedRepos} />
+      <HeroSection repos={documentedRepos} />
       <HowItWorks />
       <Footer />
       <Suspense>

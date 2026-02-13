@@ -73,7 +73,8 @@ export function Navbar() {
           >
             <Link href="/login">
               <Github className="h-4 w-4" />
-              Sign in with GitHub
+              <span className="hidden sm:inline">Sign in with GitHub</span>
+              <span className="sm:hidden">Sign in</span>
             </Link>
           </Button>
         )}

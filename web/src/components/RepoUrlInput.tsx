@@ -2,9 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Search, Github } from "lucide-react";
 
 function parseGitHubUrl(input: string): { owner: string; repo: string } | null {
   const trimmed = input.trim().replace(/\/+$/, "");
@@ -41,7 +39,7 @@ export function RepoUrlInput() {
 
     const parsed = parseGitHubUrl(url);
     if (!parsed) {
-      setError("Please enter a valid GitHub URL (e.g. github.com/vercel/next.js)");
+      setError("Enter a GitHub repo like vercel/next.js or paste a full URL");
       return;
     }
 
@@ -67,36 +65,43 @@ export function RepoUrlInput() {
 
   return (
     <form onSubmit={handleSubmit} className="w-full max-w-xl">
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">
-            quickgithub.com/
-          </span>
-          <Input
-            type="text"
-            value={url}
-            onChange={(e) => {
-              setUrl(e.target.value);
-              setError("");
-            }}
-            placeholder="owner/repo or paste GitHub URL"
-            disabled={loading}
-            className="h-14 rounded-xl border-white/20 bg-white/5 pl-[140px] text-base text-white placeholder:text-gray-500 focus:border-emerald-400 focus:ring-emerald-400/20"
-          />
-        </div>
-        <Button
-          type="submit"
-          size="lg"
+      <div className="group relative flex items-center rounded-2xl border border-white/10 bg-white/5 transition-colors focus-within:border-emerald-400/50 focus-within:bg-white/[0.07]">
+        <Github className="ml-3 h-5 w-5 shrink-0 text-gray-500 sm:ml-4" />
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            setError("");
+          }}
+          placeholder="vercel/next.js"
           disabled={loading}
-          className="h-14 rounded-xl bg-emerald-500 px-6 text-base font-semibold text-white hover:bg-emerald-400"
+          className="h-12 min-w-0 flex-1 bg-transparent px-2 text-sm text-white placeholder:text-gray-600 focus:outline-none disabled:opacity-50 sm:h-14 sm:px-3 sm:text-base"
+        />
+        <button
+          type="submit"
+          disabled={loading}
+          className="mr-1.5 flex h-9 items-center gap-1.5 rounded-xl bg-white/10 px-3 text-sm font-semibold text-white transition-colors hover:bg-white/20 disabled:opacity-50 sm:mr-2 sm:h-10 sm:px-5"
         >
-          {loading ? "Checking..." : "Go"}
-          {!loading && <ArrowRight className="ml-1 h-4 w-4" />}
-        </Button>
+          {loading ? (
+            <Search className="h-4 w-4 animate-pulse" />
+          ) : (
+            <>
+              <span className="hidden sm:inline">Generate</span>
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </button>
       </div>
-      {error && (
-        <p className="mt-2 text-sm text-red-400">{error}</p>
-      )}
+      <div className="mt-2 flex items-center gap-3 px-1">
+        {error ? (
+          <p className="text-sm text-red-400">{error}</p>
+        ) : (
+          <p className="text-xs text-gray-600">
+            Paste a GitHub URL or type <span className="text-gray-500">owner/repo</span>
+          </p>
+        )}
+      </div>
     </form>
   );
 }
