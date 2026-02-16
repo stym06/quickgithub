@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getDocsCache, setDocsCache, acquireIndexingLock, releaseIndexingLock, clearWorkerLock, clearWorkerLockIfStale, clearIndexingStatus, clearDocsCache } from "@/lib/redis";
+import { getDocsCache, setDocsCache, acquireIndexingLock, releaseIndexingLock, clearWorkerLock, clearWorkerLockIfStale, clearIndexingStatus, clearDocsCache, setIndexingStatus } from "@/lib/redis";
 import { enqueueTask } from "@/lib/asynq";
 import { MAX_REPOS_PER_USER } from "@/lib/constants";
 
@@ -38,6 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       ...cached,
       updatedAt: repoMeta?.updatedAt?.toISOString() ?? null,
+      indexedWith: cached.indexedWith ?? null,
     });
   }
 
@@ -47,11 +48,23 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     include: { documentation: true },
   });
 
-  if (!repoRecord || !repoRecord.documentation) {
+  if (!repoRecord) {
     return NextResponse.json(
       { error: "Documentation not found" },
       { status: 404 }
     );
+  }
+
+  // Repo exists but no documentation yet (indexing in progress or failed)
+  if (!repoRecord.documentation) {
+    return NextResponse.json({
+      id: repoRecord.id,
+      owner,
+      name: repo,
+      fullName,
+      status: repoRecord.status,
+      errorMessage: repoRecord.errorMessage,
+    });
   }
 
   const docs = {
@@ -61,13 +74,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     fullName,
     status: repoRecord.status,
     updatedAt: repoRecord.updatedAt.toISOString(),
-    systemOverview: repoRecord.documentation.systemOverview,
-    architecture: repoRecord.documentation.architecture,
-    techStack: repoRecord.documentation.techStack,
-    keyModules: repoRecord.documentation.keyModules,
-    entryPoints: repoRecord.documentation.entryPoints,
-    dependencies: repoRecord.documentation.dependencies,
+    indexedWith: repoRecord.indexedWith,
+    pages: repoRecord.documentation.pages,
     repoContext: repoRecord.documentation.repoContext,
+    // Legacy fields (null for new wiki docs)
+    overview: repoRecord.documentation.overview,
+    gettingStarted: repoRecord.documentation.gettingStarted,
+    coreArchitecture: repoRecord.documentation.coreArchitecture,
+    apiReference: repoRecord.documentation.apiReference,
+    usagePatterns: repoRecord.documentation.usagePatterns,
+    developmentGuide: repoRecord.documentation.developmentGuide,
   };
 
   // Cache for future requests
@@ -100,13 +116,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   if (existing) {
     if (existing.status === "COMPLETED") {
-      // Allow re-indexing: delete old documentation and clear cache
+      // Allow re-indexing: delete old documentation and clear all locks/cache
       await prisma.documentation.deleteMany({
         where: { repoId: existing.id },
       });
       await clearDocsCache(owner, repo);
       await clearIndexingStatus(owner, repo);
-    } else if (existing.status !== "FAILED") {
+      await releaseIndexingLock(owner, repo);
+    } else if (existing.status === "FAILED") {
+      // Allow re-submission for FAILED repos — clear stale locks
+      await clearIndexingStatus(owner, repo);
+      await releaseIndexingLock(owner, repo);
+    } else {
       // Allow re-submission for FAILED repos. For other statuses (PENDING,
       // FETCHING, etc.) check if a worker is actually running by testing the
       // worker-side Redis lock. If the lock is gone the previous attempt died
@@ -128,7 +149,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Check user repo limit (skip for admin)
+  // Check user repo limit (skip for admin and Pro users)
   const isAdmin = process.env.ADMIN_USER_ID && session.user.id === process.env.ADMIN_USER_ID;
 
   const user = await prisma.user.findUnique({
@@ -139,10 +160,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  if (!isAdmin && user.reposClaimed >= MAX_REPOS_PER_USER) {
+  const agentSdk = user.tier === "PRO" ? "claude" : "openai";
+
+  if (!isAdmin && user.tier !== "PRO" && user.reposClaimed >= MAX_REPOS_PER_USER) {
     return NextResponse.json(
       {
-        error: `Free tier limit: max ${MAX_REPOS_PER_USER} repo(s)`,
+        error: `Free tier limit: max ${MAX_REPOS_PER_USER} repo(s). Join the Pro waitlist for unlimited repos.`,
       },
       { status: 403 }
     );
@@ -202,7 +225,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   }
 
-  // Enqueue asynq task for the Go worker
+  // Set Redis status immediately so the SSE endpoint finds it
+  // (prevents false "STALLED" before the worker picks up the job)
+  await setIndexingStatus(owner, repo, {
+    status: "PENDING",
+    progress: 0,
+    message: "Queued for indexing...",
+  });
+
+  // Enqueue task for the worker
   await enqueueTask({
     type: "index_repo",
     payload: {
@@ -210,6 +241,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       owner,
       repo,
       full_name: fullName,
+      agent_sdk: agentSdk,
     },
   });
 

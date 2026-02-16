@@ -7,6 +7,7 @@ interface EnqueueTaskParams {
     owner: string;
     repo: string;
     full_name: string;
+    agent_sdk?: string;
   };
 }
 
@@ -24,6 +25,7 @@ export async function enqueueTask({ payload }: EnqueueTaskParams): Promise<strin
       owner: payload.owner,
       repo: payload.repo,
       fullName: payload.full_name,
+      agentSdk: payload.agent_sdk ?? "claude",
     }),
   });
 

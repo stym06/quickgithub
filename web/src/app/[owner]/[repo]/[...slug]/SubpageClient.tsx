@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { DocsSidebar } from "@/components/docs/DocsSidebar";
-import { Architecture } from "@/components/docs/Architecture";
-import { SystemOverview } from "@/components/docs/SystemOverview";
-import { KeyModules } from "@/components/docs/KeyModules";
-import { SetupGuide } from "@/components/docs/SetupGuide";
-import { EntryPoints } from "@/components/docs/EntryPoints";
-import { Dependencies } from "@/components/docs/Dependencies";
+import { ArchitectureSection } from "@/components/docs/ArchitectureSection";
+import { OverviewSection } from "@/components/docs/OverviewSection";
+import { GettingStartedSection } from "@/components/docs/GettingStartedSection";
+import { APIReferenceSection } from "@/components/docs/APIReferenceSection";
+import { UsagePatternsSection } from "@/components/docs/UsagePatternsSection";
+import { DevelopmentGuideSection } from "@/components/docs/DevelopmentGuideSection";
+import { WikiPageRenderer } from "@/components/docs/WikiPageRenderer";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Github } from "lucide-react";
+import { Github, Sparkles } from "lucide-react";
 import type { Documentation } from "@/types";
 
 export function SubpageClient({
@@ -23,6 +24,7 @@ export function SubpageClient({
 }) {
   const [docs, setDocs] = useState<Documentation | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [indexedWith, setIndexedWith] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,9 +33,11 @@ export function SubpageClient({
         const res = await fetch(`/api/repos/${owner}/${repo}`);
         if (res.ok) {
           const data = await res.json();
-          if (data.systemOverview) {
+          const isWiki = data.pages && data.pages.length > 0;
+          if (isWiki || data.overview?.description) {
             setDocs(data);
             setUpdatedAt(data.updatedAt ?? null);
+            setIndexedWith(data.indexedWith ?? null);
           }
         }
       } finally {
@@ -70,21 +74,40 @@ export function SubpageClient({
   }
 
   const section = slug[0];
+  const isWiki = docs.pages && docs.pages.length > 0;
+  const indexedWithClaude = indexedWith?.includes("claude");
 
   const renderSection = () => {
+    // Wiki mode: find page by slug
+    if (isWiki) {
+      const page = docs.pages!.find((p) => p.slug === section);
+      if (page) {
+        return <WikiPageRenderer title={page.title} content={page.content} />;
+      }
+      return (
+        <div className="text-center py-16">
+          <h1 className="text-2xl font-bold mb-2">Page not found</h1>
+          <p className="text-muted-foreground">
+            The page &quot;{section}&quot; does not exist.
+          </p>
+        </div>
+      );
+    }
+
+    // Legacy mode: fixed section routing
     switch (section) {
       case "overview":
-        return <SystemOverview data={docs.systemOverview} techStack={docs.techStack} />;
+        return <OverviewSection data={docs.overview!} />;
+      case "getting-started":
+        return <GettingStartedSection data={docs.gettingStarted!} />;
       case "architecture":
-        return <Architecture data={docs.architecture} />;
-      case "modules":
-        return <KeyModules data={docs.keyModules} owner={owner} repo={repo} />;
-      case "setup":
-        return <SetupGuide data={docs.systemOverview.setupGuide} />;
-      case "entry-points":
-        return <EntryPoints data={docs.entryPoints} />;
-      case "dependencies":
-        return <Dependencies data={docs.dependencies} />;
+        return <ArchitectureSection data={docs.coreArchitecture!} />;
+      case "api-reference":
+        return <APIReferenceSection data={docs.apiReference!} />;
+      case "usage-patterns":
+        return <UsagePatternsSection data={docs.usagePatterns!} />;
+      case "dev-guide":
+        return <DevelopmentGuideSection data={docs.developmentGuide!} />;
       default:
         return (
           <div className="text-center py-16">
@@ -102,13 +125,24 @@ export function SubpageClient({
       <DocsSidebar
         owner={owner}
         repo={repo}
-        modules={docs.keyModules}
+        modules={!isWiki ? docs.apiReference?.modules : undefined}
+        pages={isWiki ? docs.pages : undefined}
+        indexedWith={indexedWith ?? undefined}
       />
       <main className="flex-1 min-w-0 max-w-4xl px-4 py-6 pt-16 md:px-8 md:py-8 md:pt-8 overflow-x-hidden">
         <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
           {updatedAt && (
             <span className="text-xs text-muted-foreground">
               Indexed on {new Date(updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+              {indexedWith && (
+                <span className="ml-1 text-muted-foreground/70">via {indexedWith}</span>
+              )}
+            </span>
+          )}
+          {indexedWithClaude && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <Sparkles className="h-3 w-3" />
+              Pro
             </span>
           )}
           <a

@@ -25,6 +25,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.accessToken = account.access_token;
         token.userId = account.providerAccountId;
       }
+      // Attach user tier to token
+      if (token.sub) {
+        const user = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { tier: true },
+        });
+        token.tier = user?.tier ?? "FREE";
+      }
       return token;
     },
     async session({ session, token }) {
@@ -33,6 +41,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (session as any).accessToken = token.accessToken;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (session as any).user.tier = token.tier ?? "FREE";
       return session;
     },
   },

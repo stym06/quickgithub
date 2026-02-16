@@ -5,6 +5,7 @@
 
 # Private prompts (not open-sourced)
 worker/internal/llm/prompts.json
+worker-py/worker/prompts.py
 
 # OS
 .DS_Store

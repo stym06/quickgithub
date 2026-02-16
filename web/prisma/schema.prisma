@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserTier {
+  FREE
+  PRO
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -16,6 +21,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   reposClaimed  Int       @default(0)
+  tier          UserTier  @default(FREE)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   repos         Repo[]
@@ -74,6 +80,7 @@ model Repo {
   commitSha     String?
   progress      Int            @default(0)
   errorMessage  String?
+  indexedWith   String?
   claimedBy     User?          @relation(fields: [claimedById], references: [id])
   claimedById   String?
   documentation Documentation?
@@ -85,18 +92,20 @@ model Repo {
 }
 
 model Documentation {
-  id             String   @id @default(cuid())
-  repo           Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
-  repoId         String   @unique
-  systemOverview Json
-  architecture   Json
-  techStack      Json
-  keyModules     Json
-  entryPoints    Json
-  dependencies   Json
-  repoContext    String   @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id               String   @id @default(cuid())
+  repo             Repo     @relation(fields: [repoId], references: [id], onDelete: Cascade)
+  repoId           String   @unique
+  pages            Json?
+  repoContext      String   @db.Text
+  // Legacy columns kept nullable for backward compat with existing docs
+  overview         Json?
+  gettingStarted   Json?
+  coreArchitecture Json?
+  apiReference     Json?
+  usagePatterns    Json?
+  developmentGuide Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model ChatSession {
