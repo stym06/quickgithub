@@ -1,16 +1,16 @@
 "use client";
 
-import type { Architecture as ArchitectureType } from "@/types";
+import type { CoreArchitecture } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MermaidDiagram } from "./MermaidDiagram";
 
-export function Architecture({ data }: { data: ArchitectureType }) {
+export function ArchitectureSection({ data }: { data: CoreArchitecture }) {
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-3">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Architecture</h1>
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Core Architecture</h1>
         <p className="text-muted-foreground leading-relaxed whitespace-pre-wrap">
           {data.description}
         </p>

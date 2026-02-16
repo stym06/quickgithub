@@ -1,20 +1,15 @@
 "use client";
 
-import type { SystemOverview as SystemOverviewType, TechStack } from "@/types";
+import type { Overview, TechStack } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Terminal } from "lucide-react";
-
-interface SystemOverviewProps {
-  data: SystemOverviewType;
-  techStack?: TechStack;
-}
+import { Zap } from "lucide-react";
 
 function TechBadges({ techStack }: { techStack: TechStack }) {
   const allItems: { label: string; category: string }[] = [];
 
-  techStack.languages.forEach((l) => allItems.push({ label: l, category: "language" }));
-  techStack.frameworks.forEach((f) => allItems.push({ label: f, category: "framework" }));
+  techStack.languages?.forEach((l) => allItems.push({ label: l, category: "language" }));
+  techStack.frameworks?.forEach((f) => allItems.push({ label: f, category: "framework" }));
   techStack.databases?.forEach((d) => allItems.push({ label: d, category: "database" }));
   techStack.tools?.forEach((t) => allItems.push({ label: t, category: "tool" }));
   techStack.infrastructure?.forEach((i) => allItems.push({ label: i, category: "infra" }));
@@ -41,13 +36,13 @@ function TechBadges({ techStack }: { techStack: TechStack }) {
   );
 }
 
-export function SystemOverview({ data, techStack }: SystemOverviewProps) {
+export function OverviewSection({ data }: { data: Overview }) {
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="space-y-4">
         <div className="space-y-2">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">System Overview</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Overview</h1>
           <div className="flex gap-2">
             <Badge variant="secondary" className="font-mono text-xs">
               {data.mainLanguage}
@@ -63,12 +58,12 @@ export function SystemOverview({ data, techStack }: SystemOverviewProps) {
       </div>
 
       {/* Tech Stack Strip */}
-      {techStack && (
+      {data.techStack && (
         <div className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Tech Stack
           </h2>
-          <TechBadges techStack={techStack} />
+          <TechBadges techStack={data.techStack} />
         </div>
       )}
 
@@ -81,6 +76,7 @@ export function SystemOverview({ data, techStack }: SystemOverviewProps) {
       </div>
 
       {/* Key Features */}
+      {data.keyFeatures && data.keyFeatures.length > 0 && (
       <div className="space-y-4">
         <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
           <Zap className="h-5 w-5 text-primary" />
@@ -101,26 +97,6 @@ export function SystemOverview({ data, techStack }: SystemOverviewProps) {
           ))}
         </div>
       </div>
-
-      {/* Getting Started */}
-      {data.gettingStarted && (
-        <div className="space-y-3">
-          <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-            <Terminal className="h-5 w-5 text-primary" />
-            Getting Started
-          </h2>
-          <div className="relative rounded-lg border border-border/50 bg-zinc-950 overflow-hidden">
-            <div className="flex items-center gap-2 border-b border-border/30 bg-zinc-900/50 px-4 py-2">
-              <div className="h-3 w-3 rounded-full bg-red-500/60" />
-              <div className="h-3 w-3 rounded-full bg-yellow-500/60" />
-              <div className="h-3 w-3 rounded-full bg-green-500/60" />
-              <span className="ml-2 text-xs text-muted-foreground font-mono">terminal</span>
-            </div>
-            <pre className="p-4 overflow-x-auto text-sm leading-relaxed whitespace-pre-wrap break-words">
-              <code className="font-mono text-green-400">{data.gettingStarted}</code>
-            </pre>
-          </div>
-        </div>
       )}
     </div>
   );
