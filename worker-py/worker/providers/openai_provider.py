@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import re
 import time
 
+from openai import RateLimitError
 from agents import Agent, Runner
 
 from ..config import settings
@@ -51,7 +54,21 @@ class OpenAIProvider:
         )
 
         start = time.monotonic_ns()
-        result = await Runner.run(agent, prompt, max_turns=options.max_turns)
+        max_retries = 5
+        for attempt in range(max_retries):
+            try:
+                result = await Runner.run(agent, prompt, max_turns=options.max_turns)
+                break
+            except RateLimitError as e:
+                if attempt == max_retries - 1:
+                    raise
+                # Try to extract wait time from error message
+                wait = 2.0 * (attempt + 1)
+                match = re.search(r"try again in ([\d.]+)s", str(e))
+                if match:
+                    wait = float(match.group(1)) + 0.5
+                logger.warning(f"Rate limited, retrying in {wait:.1f}s (attempt {attempt + 1}/{max_retries})")
+                await asyncio.sleep(wait)
         duration_ms = (time.monotonic_ns() - start) // 1_000_000
 
         # Aggregate token usage across all raw responses

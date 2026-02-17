@@ -5,6 +5,7 @@ import mermaid from "mermaid";
 
 mermaid.initialize({
   startOnLoad: false,
+  suppressErrorRendering: true,
   theme: "dark",
   themeVariables: {
     primaryColor: "#3b82f6",
