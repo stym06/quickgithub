@@ -1,23 +1,39 @@
-// Documentation JSON structure matching the Go worker output
+// Documentation JSON structure matching the Python worker output
 
-export interface SetupGuide {
-  prerequisites: string;
-  installation: string;
-  configuration?: string;
-  running: string;
-  testing?: string;
+// ── Overview ──
+export interface TechStack {
+  languages: string[];
+  frameworks: string[];
+  databases?: string[];
+  tools?: string[];
+  infrastructure?: string[];
 }
 
-export interface SystemOverview {
+export interface Overview {
   description: string;
   purpose: string;
   keyFeatures: string[];
-  gettingStarted: string;
   mainLanguage: string;
   repoType: string;
-  setupGuide?: SetupGuide;
+  techStack: TechStack;
 }
 
+// ── Getting Started ──
+export interface ConfigOption {
+  name: string;
+  description: string;
+  required: boolean;
+  default?: string;
+}
+
+export interface GettingStarted {
+  prerequisites: string;
+  installation: string;
+  quickStart: string;
+  configuration?: ConfigOption[];
+}
+
+// ── Core Architecture ──
 export interface ArchComponent {
   name: string;
   description: string;
@@ -31,72 +47,86 @@ export interface ArchDiagram {
   content: string;
 }
 
-export interface Architecture {
+export interface CoreArchitecture {
   description: string;
   components: ArchComponent[];
   dataFlow: string;
   diagrams?: ArchDiagram[];
 }
 
-export interface TechStack {
-  languages: string[];
-  frameworks: string[];
-  databases?: string[];
-  tools?: string[];
-  infrastructure?: string[];
-}
-
-export interface ModuleExport {
+// ── API Reference ──
+export interface APIExport {
   name: string;
   type: string;
+  signature?: string;
   description: string;
 }
 
-export interface ModuleAnalysis {
+export interface APIModule {
   moduleName: string;
   modulePath: string;
   description: string;
-  keyExports: ModuleExport[];
-  internalDependencies: string[];
-  publicAPI: string[];
-  sourceFiles?: string[];
+  exports: APIExport[];
 }
 
-export interface EntryPoint {
-  name: string;
-  path: string;
+export interface APIReference {
+  modules: APIModule[];
+}
+
+// ── Usage Patterns ──
+export interface UsageExample {
+  title: string;
   description: string;
-  type?: string;
+  code: string;
+  language: string;
 }
 
-export interface EntryPoints {
-  main: EntryPoint[];
-  cli?: EntryPoint[];
-  api?: EntryPoint[];
-  config?: EntryPoint[];
-}
-
-export interface KeyDependency {
+export interface UsagePattern {
   name: string;
-  purpose: string;
+  description: string;
+  examples: UsageExample[];
 }
 
-export interface Dependencies {
-  runtime: string[];
-  dev?: string[];
-  key: KeyDependency[];
+export interface UsagePatterns {
+  patterns: UsagePattern[];
 }
 
+// ── Development Guide ──
+export interface KeyCommand {
+  command: string;
+  description: string;
+}
+
+export interface DevelopmentGuide {
+  setup: string;
+  projectStructure: string;
+  testing?: string;
+  contributing?: string;
+  keyCommands?: KeyCommand[];
+}
+
+// ── Wiki (dynamic structure) ──
+export interface WikiPage {
+  slug: string;
+  title: string;
+  content: string; // markdown
+}
+
+// ── Top-level Documentation ──
 export interface Documentation {
-  systemOverview: SystemOverview;
-  architecture: Architecture;
-  techStack: TechStack;
-  keyModules: ModuleAnalysis[];
-  entryPoints: EntryPoints;
-  dependencies: Dependencies;
-  repoContext: string;
+  // New wiki structure
+  pages?: WikiPage[];
+  // Legacy fixed structure (for old docs)
+  overview?: Overview;
+  gettingStarted?: GettingStarted;
+  coreArchitecture?: CoreArchitecture;
+  apiReference?: APIReference;
+  usagePatterns?: UsagePatterns;
+  developmentGuide?: DevelopmentGuide;
+  repoContext?: string;
 }
 
+// ── Status & Chat (unchanged) ──
 export type RepoStatus =
   | "PENDING"
   | "FETCHING"
@@ -126,4 +156,5 @@ export interface RepoDocsResponse extends Documentation {
   fullName: string;
   status: RepoStatus;
   updatedAt?: string;
+  indexedWith?: string;
 }

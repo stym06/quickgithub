@@ -1,21 +1,22 @@
+SHELL := /bin/bash
 .PHONY: dev build build-web build-worker migrate worker docker-up docker-down setup clean deploy-worker deploy-web deploy logs-worker logs-web
 
 dev:
 	npm run dev
 
-build: build-web build-worker
+build: build-web
 
 build-web:
 	cd web && npm run build
 
 build-worker:
-	cd worker && go build -o quickgithub-worker ./cmd/worker
+	cd worker-py && source .venv/bin/activate && pip install -e .
 
 migrate:
-	npx drizzle-kit push
+	cd web && npx prisma migrate dev
 
 worker:
-	cd worker && go run ./cmd/worker
+	cd worker-py && source .venv/bin/activate && python -m worker.main
 
 docker-up:
 	docker-compose up -d
@@ -25,14 +26,14 @@ docker-down:
 
 setup: docker-up
 	npm install
+	cd worker-py && source .venv/bin/activate && pip install -e .
 	@echo "Waiting for PostgreSQL to be ready..."
 	@until docker-compose exec postgres pg_isready -U quickgithub -d quickgithub > /dev/null 2>&1; do sleep 1; done
 	$(MAKE) migrate
 	@echo "Setup complete. Run 'make dev' to start the development server."
 
 deploy-worker:
-	cd worker && go build -o quickgithub-worker ./cmd/worker
-	sudo mv worker/quickgithub-worker /usr/local/bin/
+	cd worker-py && source .venv/bin/activate && pip install .
 	sudo systemctl restart quickgithub-worker
 
 deploy-web:

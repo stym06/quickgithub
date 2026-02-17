@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, FolderTree, Layers, Code, ArrowRight, Github, Zap, Star, MousePointer2 } from "lucide-react";
+import { FileText, FolderTree, Layers, Code, ArrowRight, Github, Zap, Star, MousePointer2, Compass } from "lucide-react";
 import Link from "next/link";
 import { RepoUrlInput } from "./RepoUrlInput";
 
@@ -107,8 +107,42 @@ export function HeroSection({ repos = [] }: { repos?: DocumentedRepo[] }) {
         </motion.div>
         </div>
 
-        {/* Star on GitHub */}
-        <GitHubStarButton />
+        {/* Star on GitHub + Explore */}
+        <div className="flex items-center gap-3">
+          <GitHubStarButton />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.8 }}
+          >
+            <Link
+              href="/explore"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-300 transition-colors hover:bg-white/10 hover:text-white"
+            >
+              <Compass className="h-4 w-4 text-emerald-400" />
+              Explore Indexed Repos
+            </Link>
+          </motion.div>
+        </div>
+
+        {/* Peerlist Launchpad badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.9 }}
+        >
+          <a
+            href="https://peerlist.io/stym06/project/quickgithub"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="/quickgithub-peerlist.png"
+              alt="Live on Peerlist Launchpad"
+              className="h-24"
+            />
+          </a>
+        </motion.div>
       </div>
     </section>
   );
@@ -248,7 +282,7 @@ function GitHubStarButton() {
 }
 
 function RepoTicker({ repos }: { repos: DocumentedRepo[] }) {
-  const items = [...repos, ...repos];
+  const items = repos;
   const [paused, setPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
@@ -325,7 +359,7 @@ function RepoTicker({ repos }: { repos: DocumentedRepo[] }) {
             ref={trackRef}
             className="flex w-max gap-3 px-2 py-1"
             style={{
-              animation: "ticker 20s linear infinite",
+              animation: repos.length > 4 ? "ticker 20s linear infinite" : "none",
               animationPlayState: paused ? "paused" : "running",
             }}
           >

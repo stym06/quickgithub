@@ -1,0 +1,23 @@
+[project]
+name = "quickgithub-worker"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "claude-agent-sdk>=0.1.35",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.34",
+    "arq>=0.26",
+    "asyncpg>=0.30",
+    "redis[hiredis]>=5.2",
+    "pydantic>=2.10",
+    "pydantic-settings>=2.7",
+    "httpx>=0.28",
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    "opentelemetry-exporter-otlp-proto-http>=1.28",
+    "openai-agents>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

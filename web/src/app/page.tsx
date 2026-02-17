@@ -11,13 +11,13 @@ export const dynamic = "force-dynamic";
 async function getDocumentedRepos() {
   const repos = await prisma.repo.findMany({
     where: { status: "COMPLETED" },
-    include: { documentation: { select: { systemOverview: true } } },
+    include: { documentation: { select: { overview: true } } },
     orderBy: { updatedAt: "desc" },
     take: 6,
   });
 
   return repos.map((r) => {
-    const overview = r.documentation?.systemOverview as
+    const overview = r.documentation?.overview as
       | { description?: string; mainLanguage?: string }
       | null;
     return {

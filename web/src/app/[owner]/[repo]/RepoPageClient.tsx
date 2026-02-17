@@ -7,14 +7,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DocsSidebar } from "@/components/docs/DocsSidebar";
-import { SystemOverview } from "@/components/docs/SystemOverview";
+import { OverviewSection } from "@/components/docs/OverviewSection";
+import { WikiPageRenderer } from "@/components/docs/WikiPageRenderer";
 import { IndexingProgress } from "@/components/IndexingProgress";
-import { Github, RefreshCw } from "lucide-react";
+import { Github, RefreshCw, Sparkles } from "lucide-react";
 import type { Documentation, RepoStatus } from "@/types";
 
 type PageState =
   | { kind: "loading" }
-  | { kind: "docs"; docs: Documentation; updatedAt?: string }
+  | { kind: "docs"; docs: Documentation; updatedAt?: string; indexedWith?: string }
   | { kind: "indexing" }
   | { kind: "not-indexed-auth" }
   | { kind: "not-indexed-anon" }
@@ -33,13 +34,18 @@ export function RepoPageClient({
   const [pageState, setPageState] = useState<PageState>({ kind: "loading" });
   const [triggering, setTriggering] = useState(false);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userTier = (session?.user as any)?.tier ?? "FREE";
+  const isPro = userTier === "PRO";
+
   const fetchDocs = useCallback(async () => {
     try {
       const res = await fetch(`/api/repos/${owner}/${repo}`);
       if (res.ok) {
         const data = await res.json();
-        if (data.status === "COMPLETED" && data.systemOverview) {
-          setPageState({ kind: "docs", docs: data, updatedAt: data.updatedAt });
+        const isWiki = data.pages && data.pages.length > 0;
+        if (data.status === "COMPLETED" && (isWiki || data.overview?.description)) {
+          setPageState({ kind: "docs", docs: data, updatedAt: data.updatedAt, indexedWith: data.indexedWith });
         } else if (
           ["PENDING", "FETCHING", "PARSING", "ANALYZING"].includes(
             data.status as RepoStatus
@@ -51,6 +57,13 @@ export function RepoPageClient({
             kind: "error",
             message: data.errorMessage || "Indexing failed",
           });
+        } else if (data.status === "COMPLETED") {
+          // COMPLETED but no valid docs (e.g. post-migration empty data)
+          if (authStatus === "authenticated") {
+            setPageState({ kind: "not-indexed-auth" });
+          } else {
+            setPageState({ kind: "not-indexed-anon" });
+          }
         }
       } else if (res.status === 404) {
         // Not in our DB — verify the repo exists on GitHub before prompting.
@@ -86,8 +99,9 @@ export function RepoPageClient({
       const res = await fetch(`/api/repos/${owner}/${repo}`, {
         method: "POST",
       });
-      if (res.ok || res.status === 202) {
-        router.push(`/?indexing=${owner}/${repo}`);
+      if (res.ok || res.status === 202 || res.status === 409) {
+        // 409 = indexing already in progress — show progress instead of error
+        setPageState({ kind: "indexing" });
         return;
       } else {
         const data = await res.json().catch(() => ({}));
@@ -123,18 +137,33 @@ export function RepoPageClient({
   }
 
   if (pageState.kind === "docs") {
+    const isWiki = pageState.docs.pages && pageState.docs.pages.length > 0;
+    const firstPage = isWiki ? pageState.docs.pages![0] : null;
+    const indexedWithClaude = pageState.indexedWith?.includes("claude");
+
     return (
       <div className="flex min-h-[calc(100vh-3.5rem)]">
         <DocsSidebar
           owner={owner}
           repo={repo}
-          modules={pageState.docs.keyModules}
+          modules={!isWiki ? pageState.docs.apiReference?.modules : undefined}
+          pages={isWiki ? pageState.docs.pages : undefined}
+          indexedWith={pageState.indexedWith}
         />
         <main className="flex-1 min-w-0 max-w-4xl px-4 py-6 pt-16 md:px-8 md:py-8 md:pt-8 overflow-x-hidden">
           <div className="flex flex-wrap items-center justify-end gap-3 mb-4">
             {pageState.updatedAt && (
               <span className="text-xs text-muted-foreground">
                 Indexed on {new Date(pageState.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                {pageState.indexedWith && (
+                  <span className="ml-1 text-muted-foreground/70">via {pageState.indexedWith}</span>
+                )}
+              </span>
+            )}
+            {indexedWithClaude && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                <Sparkles className="h-3 w-3" />
+                Pro
               </span>
             )}
             {session && (
@@ -145,8 +174,16 @@ export function RepoPageClient({
                 disabled={triggering}
                 className="flex items-center gap-1.5"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${triggering ? "animate-spin" : ""}`} />
-                {triggering ? "Re-indexing..." : "Regenerate Docs"}
+                {isPro ? (
+                  <Sparkles className={`h-3.5 w-3.5 ${triggering ? "animate-pulse" : ""}`} />
+                ) : (
+                  <RefreshCw className={`h-3.5 w-3.5 ${triggering ? "animate-spin" : ""}`} />
+                )}
+                {triggering
+                  ? "Re-indexing..."
+                  : isPro
+                    ? "Generate Docs with Claude"
+                    : "Regenerate Docs"}
               </Button>
             )}
             <a
@@ -159,7 +196,11 @@ export function RepoPageClient({
               Open in GitHub
             </a>
           </div>
-          <SystemOverview data={pageState.docs.systemOverview} techStack={pageState.docs.techStack} />
+          {isWiki && firstPage ? (
+            <WikiPageRenderer title={firstPage.title} content={firstPage.content} />
+          ) : (
+            <OverviewSection data={pageState.docs.overview!} />
+          )}
         </main>
       </div>
     );
@@ -192,8 +233,14 @@ export function RepoPageClient({
             size="lg"
             onClick={handleTriggerIndex}
             disabled={triggering}
+            className="flex items-center gap-2"
           >
-            {triggering ? "Starting..." : "Generate Docs"}
+            {isPro && <Sparkles className="h-4 w-4" />}
+            {triggering
+              ? "Starting..."
+              : isPro
+                ? "Generate Docs with Claude"
+                : "Generate Docs"}
           </Button>
         </div>
       </div>
@@ -244,9 +291,15 @@ export function RepoPageClient({
         <p className="text-muted-foreground">
           {pageState.kind === "error" ? pageState.message : "Unknown error"}
         </p>
-        <Button variant="outline" onClick={() => fetchDocs()}>
-          Try Again
-        </Button>
+        {session ? (
+          <Button onClick={handleTriggerIndex} disabled={triggering}>
+            {triggering ? "Starting..." : "Regenerate Docs"}
+          </Button>
+        ) : (
+          <Button variant="outline" asChild>
+            <Link href="/login">Sign in to Regenerate</Link>
+          </Button>
+        )}
       </div>
     </div>
   );
