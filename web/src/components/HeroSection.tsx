@@ -124,6 +124,25 @@ export function HeroSection({ repos = [] }: { repos?: DocumentedRepo[] }) {
             </Link>
           </motion.div>
         </div>
+
+        {/* Peerlist Launchpad badge */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.9 }}
+        >
+          <a
+            href="https://peerlist.io/stym06/project/quickgithub"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <img
+              src="/quickgithub-peerlist.png"
+              alt="Live on Peerlist Launchpad"
+              className="h-24"
+            />
+          </a>
+        </motion.div>
       </div>
     </section>
   );
