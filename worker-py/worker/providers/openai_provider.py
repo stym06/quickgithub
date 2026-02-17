@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 
 from agents import Agent, Runner
 
 from ..config import settings
+
+# The OpenAI Agents SDK reads OPENAI_API_KEY from os.environ,
+# but pydantic-settings only loads it into the settings object.
+if settings.OPENAI_API_KEY and not os.environ.get("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 from .base import AgentRunOptions, AgentRunResult
 from .openai_tools import create_file_tools
 

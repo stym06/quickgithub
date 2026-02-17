@@ -3,16 +3,14 @@
 .env.*
 !.env.example
 
-# Private prompts (not open-sourced)
-worker/internal/llm/prompts.json
-worker-py/worker/prompts.py
+# Python
+__pycache__/
+*.egg-info/
+*.pyc
+worker-py/.venv/
 
 # OS
 .DS_Store
-
-# Go
-worker/tmp/
-worker/quickgithub-worker
 
 # Node / Next.js
 web/node_modules/
